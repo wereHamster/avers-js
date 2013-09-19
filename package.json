@@ -1,0 +1,20 @@
+{
+  "name": "avers",
+  "description": "",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/wereHamster/avers.git"
+  },
+  "component": {
+    "scripts": {
+      "avers": "avers.js"
+    }
+  },
+  "devDependencies": {
+    "mocha": "*",
+    "chai": "*",
+    "serve": "*",
+    "underscore": "*"
+  }
+}
