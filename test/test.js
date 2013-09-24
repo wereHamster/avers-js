@@ -70,6 +70,27 @@ describe('JSON parser', function() {
     })
 })
 
+describe('Avers.toJSON', function() {
+    function runTest(x, json) {
+        assert.deepEqual(json, Avers.toJSON(x));
+        assert.doesNotThrow(function() {
+            JSON.stringify(Avers.toJSON(x));
+        });
+    }
+
+    it('should handle primitive types', function() {
+        [ null, 42, 'string' ].forEach(function(x) { runTest(x, x); });
+    })
+    it('should handle objects', function() {
+        runTest(Avers.parseJSON(Book, jsonBook), jsonBook);
+    })
+    it('should handle collections', function() {
+        var library = new Library();
+        library.books.push(Avers.parseJSON(Book, jsonBook));
+        runTest(library.books, [jsonBook]);
+    })
+})
+
 describe('Change events', function() {
     // This timeout is very conservative;
     this.timeout(500);

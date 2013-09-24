@@ -296,18 +296,20 @@
     }
 
     Avers.toJSON = function(x) {
-        if (x.aversProperties) {
+        if (x === Object(x) && x.aversProperties) {
             var json = Object.create(null);
 
             for (var name in x.aversProperties) {
                 switch (x.aversProperties[name].type) {
                 case 'primitive':  json[name] = x[name]; break;
                 case 'object':     json[name] = x[name] ? Avers.toJSON(x[name]) : null; break;
-                case 'collection': json[name] = x[name]; break;
+                case 'collection': json[name] = Avers.toJSON(x[name]); break;
                 }
             }
 
             return json;
+        } else if (Array.isArray(x)) {
+            return x.map(Avers.toJSON);
         } else {
             return x;
         }
