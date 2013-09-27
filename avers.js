@@ -242,10 +242,13 @@
             x[name] = parseJSON(desc, x[name], json[name]);
         }
 
-        // The polyfill doens't provide this function.
-        // Object.deliverChangeRecords(modelChangesCallback);
-
         return x;
+    }
+
+    Avers.deliverChangeRecords = function() {
+        // FIXME: The polyfill doens't provide this function.
+        Object.deliverChangeRecords(modelChangesCallback);
+        Object.deliverChangeRecords(collectionChangeCallback);
     }
 
     Avers.parseJSON = function(x, json) {

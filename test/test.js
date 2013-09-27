@@ -121,4 +121,16 @@ describe('Change events', function() {
         expectChangeAtPath(library, 'books', done);
         library.books.push(Avers.parseJSON(Book, jsonBook))
     });
+
+    it('Avers.deliverChangeRecords should flush all changes', function(done) {
+        var changeAfter, book = Avers.parseJSON(Book, jsonBook);
+        Avers.deliverChangeRecords();
+
+        book.on('change', function() { changeAfter = true; });
+
+        setTimeout(function() {
+            assert.notOk(changeAfter, 'Callback invoked after flushing changes');
+            done();
+        }, 10);
+    });
 });
