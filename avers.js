@@ -255,6 +255,14 @@
         return Avers.updateObject(new x(), json);
     }
 
+    function concatPath(self, child) {
+        if (child !== null) {
+            return [self, child].join('.');
+        } else {
+            return self;
+        }
+    }
+
     function modelChangesCallback(changes) {
         changes.forEach(function(x) {
             var self = x.object
@@ -267,16 +275,16 @@
             if (x.type === 'new') {
                 var value = self[x.name];
 
-                self.trigger('change', x.name, value);
+                self.trigger('change', x.name, { type: 'set', value: value });
                 if (value) {
                     if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
-                        self.listenTo(value, 'change', function(key, value) {
-                            self.trigger('change', [x.name, key].join('.'), value);
+                        self.listenTo(value, 'change', function(key, operation) {
+                            self.trigger('change', concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'updated') {
-                self.trigger('change', x.name, self[x.name]);
+                self.trigger('change', x.name, { type: 'set', value: self[x.name] });
 
                 if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
                     if (x.oldValue) {
@@ -284,13 +292,13 @@
                     }
                     if (self[x.name]) {
                         self.stopListening(self[x.name]);
-                        self.listenTo(self[x.name], 'change', function(key, value) {
-                            self.trigger('change', [x.name, key].join('.'), value);
+                        self.listenTo(self[x.name], 'change', function(key, operation) {
+                            self.trigger('change', concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'deleted') {
-                self.trigger('change', x.name, x.oldValue);
+                self.trigger('change', x.name, { type: 'set' });
                 if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
                     self.stopListening(x.oldValue);
                 }
@@ -321,44 +329,36 @@
 
     function collectionChangeCallback(changes) {
         changes.forEach(function(x) {
-            var self = x.object, index;
-            if (!isIndex(x.name)) {
-                return;
-            }
+            var self = x.object;
 
-            if (x.type === 'new') {
-                index = _.uniqueId('c');
-                var obj = self[index] = self[x.name];
+            if (x.type === 'splice') {
+                var insert = self.slice(x.index, x.index + x.addedCount);
 
-                self.trigger('change', index, obj);
-                self.listenTo(obj, 'change', function(key, value) {
-                    self.trigger('change', [index, key].join('.'), value);
+                self.trigger('change', null, {
+                    type:   'splice',
+                    index:  x.index,
+                    remove: x.removed.length,
+                    insert: insert.map(Avers.toJSON)
                 });
-            } else if (x.type === 'deleted') {
-                for (var k in self) {
-                    if (self[k] === x.oldValue && !isIndex(k)) {
-                        index = k;
-                        break;
-                    }
-                }
 
-                delete self[index];
+                x.removed.forEach(function(x) {
+                    self.stopListening(x);
+                });
 
-                self.trigger('change', index, x.oldValue);
-                self.stopListening(x.oldValue);
+                insert.forEach(function(x) {
+                    self.listenTo(x, 'change', function(key, value) {
+                        var index = self.indexOf(x);
+                        self.trigger('change', concatPath(index, key), value);
+                    });
+                });
             }
         });
-
-        function isIndex(x) {
-            return parseInt(x, 10).toString() === x;
-        }
     }
 
     function mkCollection() {
         var collection = [];
         _.extend(collection, Events);
-        // TODO: Use Array.observe
-        Object.observe(collection, collectionChangeCallback);
+        Array.observe(collection, collectionChangeCallback);
         return collection;
     };
 
