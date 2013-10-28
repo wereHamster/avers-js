@@ -165,6 +165,21 @@
   });
 
 
+    Avers.resolvePath = function(obj, path) {
+        path = path.split('.');
+        var last = path.pop();
+
+        var lastObject = path.reduce(function(obj, key) {
+            if (obj !== undefined &&_.isObject(obj[key])) {
+                return obj[key];
+            }
+        }, obj);
+
+        if (lastObject !== undefined && _.isObject(lastObject)) {
+            return lastObject[last];
+        }
+    }
+
 
     Avers.initializeProperties = function(x) {
         _.extend(x, Events);

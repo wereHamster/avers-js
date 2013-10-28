@@ -134,3 +134,21 @@ describe('Change events', function() {
         }, 10);
     });
 });
+
+describe('Avers.resolvePath', function() {
+    it('should resolve in a simple object', function() {
+        var obj = { key: 'string' };
+        assert.equal('string', Avers.resolvePath(obj, 'key'));
+    });
+    it('should resolve nested objects', function() {
+        var obj = { some: { deep: { key: 'string' } } };
+        assert.equal('string', Avers.resolvePath(obj, 'some.deep.key'));
+    });
+    it('should resolve across arrays', function() {
+        var obj = { array: [{ deep: { key: 'string' } }] };
+        assert.equal('string', Avers.resolvePath(obj, 'array.0.deep.key'));
+    });
+    it('should return undefined if the path can not be resolved', function() {
+        assert.isUndefined(Avers.resolvePath({}, 'array.0.deep.key'));
+    });
+});
