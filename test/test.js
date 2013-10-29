@@ -137,18 +137,32 @@ describe('Change events', function() {
 
 describe('Avers.resolvePath', function() {
     it('should resolve in a simple object', function() {
-        var obj = { key: 'string' };
-        assert.equal('string', Avers.resolvePath(obj, 'key'));
+        var book = Avers.parseJSON(Book, jsonBook);
+        assert.equal('Game of Thrones', Avers.resolvePath(book, 'title'));
     });
     it('should resolve nested objects', function() {
-        var obj = { some: { deep: { key: 'string' } } };
-        assert.equal('string', Avers.resolvePath(obj, 'some.deep.key'));
+        var book = Avers.parseJSON(Book, jsonBook);
+        assert.equal('Tomas', Avers.resolvePath(book, 'author.firstName'));
     });
     it('should resolve across arrays', function() {
-        var obj = { array: [{ deep: { key: 'string' } }] };
-        assert.equal('string', Avers.resolvePath(obj, 'array.0.deep.key'));
+        var library = new Library();
+        library.books.push(Avers.parseJSON(Book, jsonBook));
+        assert.equal('Tomas', Avers.resolvePath(library, 'books.0.author.firstName'));
     });
     it('should return undefined if the path can not be resolved', function() {
         assert.isUndefined(Avers.resolvePath({}, 'array.0.deep.key'));
+    });
+    it('should ignore properties that are not registered', function() {
+        var book = Avers.parseJSON(Book, jsonBook);
+        book.author.something = '42';
+        assert.isUndefined(Avers.resolvePath(book, 'author.something'));
+    });
+    it('should ignore array indices out of bounds', function() {
+        assert.isUndefined(Avers.resolvePath([], '1'));
+    });
+    it('should ignore properties on arrays', function() {
+        var array = [];
+        array.something = '42';
+        assert.isUndefined(Avers.resolvePath(array, 'something'));
     });
 });

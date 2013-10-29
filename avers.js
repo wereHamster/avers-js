@@ -165,19 +165,23 @@
   });
 
 
-    Avers.resolvePath = function(obj, path) {
-        path = path.split('.');
-        var last = path.pop();
-
-        var lastObject = path.reduce(function(obj, key) {
-            if (obj !== undefined &&_.isObject(obj[key])) {
-                return obj[key];
+    function descendInto(obj, key) {
+        if (_.isArray(obj)) {
+            var index = parseInt(key, 10);
+            if (0 <= index && index <= obj.length) {
+                return obj[index];
             }
-        }, obj);
-
-        if (lastObject !== undefined && _.isObject(lastObject)) {
-            return lastObject[last];
+        } else if (_.isObject(obj) && obj.aversProperties && obj.aversProperties[key]) {
+            return obj[key];
         }
+    }
+
+
+    Avers.resolvePath = function(obj, path) {
+        var pathKeys = path.split('.')
+          , lastKey  = pathKeys.pop();
+
+        return descendInto(pathKeys.reduce(descendInto, obj), lastKey);
     }
 
 
