@@ -168,7 +168,7 @@
     function descendInto(obj, key) {
         if (_.isArray(obj)) {
             var index = parseInt(key, 10);
-            if (0 <= index && index <= obj.length) {
+            if (0 <= index && index < obj.length) {
                 return obj[index];
             }
         } else if (_.isObject(obj) && obj.aversProperties && obj.aversProperties[key]) {
