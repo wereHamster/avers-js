@@ -91,7 +91,7 @@ describe('Avers.toJSON', function() {
     })
 })
 
-describe('Change events', function() {
+describe('Change event propagation', function() {
     // This timeout is very conservative;
     this.timeout(500);
 

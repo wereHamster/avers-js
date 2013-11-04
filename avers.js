@@ -282,6 +282,15 @@
         }
     }
 
+    function toObjectOperation(x) {
+        return {
+            type:     'set',
+            object:   x.object,
+            value:    x.object[x.name],
+            oldValue: x.oldValue,
+        };
+    }
+
     function modelChangesCallback(changes) {
         changes.forEach(function(x) {
             var self = x.object
@@ -292,9 +301,9 @@
             }
 
             if (x.type === 'new') {
-                var value = self[x.name];
+                self.trigger('change', x.name, toObjectOperation(x));
 
-                self.trigger('change', x.name, { type: 'set', value: value });
+                var value = self[x.name];
                 if (value) {
                     if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
                         self.listenTo(value, 'change', function(key, operation) {
@@ -303,21 +312,24 @@
                     }
                 }
             } else if (x.type === 'updated') {
-                self.trigger('change', x.name, { type: 'set', value: self[x.name] });
+                self.trigger('change', x.name, toObjectOperation(x));
 
                 if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
                     if (x.oldValue) {
                         self.stopListening(x.oldValue);
                     }
-                    if (self[x.name]) {
-                        self.stopListening(self[x.name]);
-                        self.listenTo(self[x.name], 'change', function(key, operation) {
+
+                    var value = self[x.name];
+                    if (value) {
+                        self.stopListening(value);
+                        self.listenTo(value, 'change', function(key, operation) {
                             self.trigger('change', concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'deleted') {
-                self.trigger('change', x.name, { type: 'set' });
+                self.trigger('change', x.name, toObjectOperation(x));
+
                 if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
                     self.stopListening(x.oldValue);
                 }
@@ -345,7 +357,6 @@
         }
     }
 
-
     function collectionChangeCallback(changes) {
         changes.forEach(function(x) {
             var self = x.object;
@@ -354,10 +365,11 @@
                 var insert = self.slice(x.index, x.index + x.addedCount);
 
                 self.trigger('change', null, {
-                    type:   'splice',
-                    index:  x.index,
-                    remove: x.removed.length,
-                    insert: insert.map(Avers.toJSON)
+                    type:       'splice',
+                    object:     x.object,
+                    index:      x.index,
+                    remove:     x.removed,
+                    insert:     insert,
                 });
 
                 x.removed.forEach(function(x) {
