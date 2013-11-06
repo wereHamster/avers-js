@@ -17,12 +17,17 @@ function Book() {
 }
 
 var jsonBook = {
+    id: undefined,
     type: 'book',
     title: 'Game of Thrones',
     author: jsonAuthor
 }
 
+var jsonBookWithId = Object.create(jsonBook);
+jsonBookWithId.id  = 'some-random-id';
+
 Avers.typeTag(Book, 'book');
+Avers.definePrimitive(Book, 'id');
 Avers.definePrimitive(Book, 'title');
 Avers.defineObject(Book, 'author', {
     parser: Avers.createParser(Author)
@@ -145,9 +150,14 @@ describe('Avers.resolvePath', function() {
         assert.equal('Tomas', Avers.resolvePath(book, 'author.firstName'));
     });
     it('should resolve across arrays', function() {
-        var library = new Library();
-        library.books.push(Avers.parseJSON(Book, jsonBook));
-        assert.equal('Tomas', Avers.resolvePath(library, 'books.0.author.firstName'));
+        var book, library = new Library();
+        library.books.push(book = Avers.parseJSON(Book, jsonBook));
+        Avers.deliverChangeRecords();
+
+        var id   = Avers.itemId(library.books, book);
+        var path = 'books.' + id + '.author.firstName';
+
+        assert.equal('Tomas', Avers.resolvePath(library, path));
     });
     it('should return undefined if the path can not be resolved', function() {
         assert.isUndefined(Avers.resolvePath({}, 'array.0.deep.key'));
@@ -158,11 +168,32 @@ describe('Avers.resolvePath', function() {
         assert.isUndefined(Avers.resolvePath(book, 'author.something'));
     });
     it('should ignore array indices out of bounds', function() {
-        assert.isUndefined(Avers.resolvePath([], '1'));
+        var library = new Library();
+        assert.isUndefined(Avers.resolvePath(library.books, '1'));
     });
     it('should ignore properties on arrays', function() {
-        var array = [];
-        array.something = '42';
-        assert.isUndefined(Avers.resolvePath(array, 'something'));
+        var library = new Library();
+        library.books.something = '42';
+        assert.isUndefined(Avers.resolvePath(library.books, 'something'));
+    });
+});
+
+describe('Avers.itemId', function() {
+    it('should return undefined until changes have been delivered', function() {
+        var book, library = new Library();
+        library.books.push(book = Avers.parseJSON(Book, jsonBook));
+        assert.isUndefined(Avers.itemId(library.books, book));
+    });
+    it('should return a local id for new items', function() {
+        var book, library = new Library();
+        library.books.push(book = Avers.parseJSON(Book, jsonBook));
+        Avers.deliverChangeRecords();
+        assert.match(Avers.itemId(library.books, book), /~.*/);
+    });
+    it('should return the item id when the item has one set', function() {
+        var book, library = new Library();
+        library.books.push(book = Avers.parseJSON(Book, jsonBookWithId));
+        Avers.deliverChangeRecords();
+        assert.equal(Avers.itemId(library.books, book), jsonBookWithId.id);
     });
 });

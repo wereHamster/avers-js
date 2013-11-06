@@ -167,10 +167,7 @@
 
     function descendInto(obj, key) {
         if (_.isArray(obj)) {
-            var index = parseInt(key, 10);
-            if (0 <= index && index < obj.length) {
-                return obj[index];
-            }
+            return obj.idMap[key] || obj.localMap[key];
         } else if (_.isObject(obj) && obj.aversProperties && obj.aversProperties[key]) {
             return obj[key];
         }
@@ -239,7 +236,7 @@
     function parseJSON(desc, old, json) {
         switch (desc.type) {
         case 'collection':
-            old.slice(0);
+            resetCollection(old);
             json.forEach(function(x) { old.push(desc.parser(x)) });
             return old;
 
@@ -357,6 +354,20 @@
         }
     }
 
+    Avers.itemId = function(collection, item) {
+        if (item.id) {
+            // ASSERT: collection.idMap[item.id] === item
+            return item.id;
+        } else {
+            var localMap = collection.localMap;
+            for (var id in localMap) {
+                if (localMap[id] === item) {
+                    return id;
+                }
+            }
+        }
+    }
+
     function collectionChangeCallback(changes) {
         changes.forEach(function(x) {
             var self = x.object;
@@ -374,20 +385,38 @@
 
                 x.removed.forEach(function(x) {
                     self.stopListening(x);
+
+                    delete self.idMap[x.id]
+                    delete self.localMap[x.id]
                 });
 
                 insert.forEach(function(x) {
+                    if (x.id) {
+                        self.idMap[x.id] = x;
+                    } else {
+                        self.localMap[_.uniqueId('~')] = x;
+                    }
+
                     self.listenTo(x, 'change', function(key, value) {
-                        var index = self.indexOf(x);
-                        self.trigger('change', concatPath(index, key), value);
+                        var id = Avers.itemId(self, x);
+                        self.trigger('change', concatPath(id, key), value);
                     });
                 });
             }
         });
     }
 
+    function resetCollection(x) {
+        x.splice(0, x.length);
+
+        x.idMap    = Object.create(null);
+        x.localMap = Object.create(null);
+    }
+
     function mkCollection() {
         var collection = [];
+        resetCollection(collection);
+
         _.extend(collection, Events);
         Array.observe(collection, collectionChangeCallback);
         return collection;
