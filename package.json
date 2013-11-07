@@ -14,7 +14,6 @@
   "devDependencies": {
     "mocha": "*",
     "chai": "*",
-    "serve": "*",
-    "underscore": "*"
+    "serve": "*"
   }
 }

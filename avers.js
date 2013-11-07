@@ -15,9 +15,30 @@
         return prefix + (++idCounter);
     }
 
-    var _ = root._;
-    if (!_ && (typeof require !== 'undefined'))
-        _ = require('underscore');
+    function result(object, property) {
+        if (object != null) {
+            var value = object[property];
+            if (typeof value === 'function') {
+                return value.call(object);
+            } else {
+                return value;
+            }
+        }
+    }
+
+    var hasProp = {}.hasOwnProperty;
+    function extend(obj) {
+        slice.call(arguments, 1).forEach(function(source) {
+            for (var prop in source) {
+                if (hasProp.call(source, prop)) {
+                    obj[prop] = source[prop];
+                }
+            }
+        });
+
+        return obj;
+    }
+
 
     // Copied from Backbone.Events
 
@@ -122,7 +143,7 @@
 
 
     Avers.initializeProperties = function(x) {
-        _.extend(x, Events);
+        extend(x, Events);
 
         Object.observe(x, modelChangesCallback);
 
@@ -130,7 +151,7 @@
             if (x.aversProperties[name].type === 'collection') {
                 x[name] = mkCollection();
             } else {
-                x[name] = _.result(x.aversProperties[name].value);
+                x[name] = result(x.aversProperties[name].value);
             }
         }
     }
@@ -141,15 +162,15 @@
     }
 
     Avers.definePrimitive = function(x, name, desc) {
-        Avers.defineProperty(x, name, _.extend({}, desc, { type: 'primitive' }));
+        Avers.defineProperty(x, name, extend({}, desc, { type: 'primitive' }));
     }
 
     Avers.defineObject = function(x, name, desc) {
-        Avers.defineProperty(x, name, _.extend({}, desc, { type: 'object' }));
+        Avers.defineProperty(x, name, extend({}, desc, { type: 'object' }));
     }
 
     Avers.defineCollection = function(x, name, desc) {
-        Avers.defineProperty(x, name, _.extend({}, desc, { type: 'collection' }));
+        Avers.defineProperty(x, name, extend({}, desc, { type: 'collection' }));
     }
 
     Avers.typeTag = function(x, value) {
@@ -356,7 +377,7 @@
         var collection = [];
         resetCollection(collection);
 
-        _.extend(collection, Events);
+        extend(collection, Events);
         Array.observe(collection, collectionChangeCallback);
         return collection;
     };
