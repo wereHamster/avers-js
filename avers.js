@@ -50,7 +50,7 @@
                 return this;
             }
 
-            names = name ? [name] : _.keys(this._events);
+            names = name ? [name] : Object.keys(this._events);
             for (i = 0, l = names.length; i < l; i++) {
                 name = names[i];
                 if (events = this._events[name]) {
@@ -105,9 +105,9 @@
 
 
     function descendInto(obj, key) {
-        if (_.isArray(obj)) {
+        if (Array.isArray(obj)) {
             return obj.idMap[key] || obj.localMap[key];
-        } else if (_.isObject(obj) && obj.aversProperties && obj.aversProperties[key]) {
+        } else if (obj === Object(obj) && obj.aversProperties && obj.aversProperties[key]) {
             return obj[key];
         }
     }
