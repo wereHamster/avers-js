@@ -135,7 +135,11 @@
 
 
     Avers.resolvePath = function(obj, path) {
-        return path.split('.').reduce(descendInto, obj);
+        if (path === '') {
+            return obj;
+        } else {
+            return path.split('.').reduce(descendInto, obj);
+        }
     }
 
 

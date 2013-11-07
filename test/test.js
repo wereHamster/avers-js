@@ -145,6 +145,10 @@ describe('Avers.resolvePath', function() {
         var book = Avers.parseJSON(Book, jsonBook);
         assert.equal('Game of Thrones', Avers.resolvePath(book, 'title'));
     });
+    it('should resolve an empty string to the object itself', function() {
+        var book = Avers.parseJSON(Book, jsonBook);
+        assert.equal('Game of Thrones', Avers.resolvePath(book.title, ''));
+    });
     it('should resolve nested objects', function() {
         var book = Avers.parseJSON(Book, jsonBook);
         assert.equal('Tomas', Avers.resolvePath(book, 'author.firstName'));
