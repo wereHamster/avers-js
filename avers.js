@@ -135,10 +135,7 @@
 
 
     Avers.resolvePath = function(obj, path) {
-        var pathKeys = path.split('.')
-          , lastKey  = pathKeys.pop();
-
-        return descendInto(pathKeys.reduce(descendInto, obj), lastKey);
+        return path.split('.').reduce(descendInto, obj);
     }
 
 
