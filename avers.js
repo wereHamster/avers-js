@@ -133,7 +133,6 @@
         }
     }
 
-
     Avers.resolvePath = function(obj, path) {
         if (path === '') {
             return obj;
@@ -142,6 +141,37 @@
         }
     }
 
+    Avers.clone = function(x) {
+        if (Array.isArray(x)) {
+            return mkCollection(x.map(Avers.clone));
+        } else if (x === Object(x) && x.aversProperties) {
+            return Avers.parseJSON(x.constructor, Avers.toJSON(x));
+        } else {
+            return x;
+        }
+    }
+
+    function setValueAtPath(obj, path, value) {
+        var pathKeys = path.split('.')
+          , lastKey  = pathKeys.pop()
+          , obj      = Avers.resolvePath(obj, pathKeys.join('.'));
+
+        obj[lastKey] = Avers.clone(value);
+    }
+
+    function applySpliceOperation(obj, path, op) {
+        var obj  = Avers.resolvePath(obj, path)
+          , args = [ op.index, op.remove.length ].concat(op.insert.map(Avers.clone));
+
+        splice.apply(obj, args);
+    }
+
+    Avers.applyOperation = function(obj, path, op) {
+        switch (op.type) {
+        case 'set'    : return setValueAtPath(obj, path, op.value);
+        case 'splice' : return applySpliceOperation(obj, path, op);
+        }
+    }
 
     Avers.initializeProperties = function(x) {
         extend(x, Events);
@@ -374,9 +404,13 @@
         x.localMap = Object.create(null);
     }
 
-    function mkCollection() {
+    function mkCollection(items) {
         var collection = [];
         resetCollection(collection);
+
+        if (items) {
+            splice.apply(collection, [0,0].concat(items));
+        }
 
         extend(collection, Events);
         Array.observe(collection, collectionChangeCallback);

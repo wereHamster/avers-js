@@ -201,3 +201,22 @@ describe('Avers.itemId', function() {
         assert.equal(Avers.itemId(library.books, book), jsonBookWithId.id);
     });
 });
+
+describe('Avers.clone', function() {
+    it('should clone primitive values', function() {
+        assert.equal('str', Avers.clone('str'));
+    });
+    it('should clone Avers objects', function() {
+        var book  = Avers.parseJSON(Book, jsonBook);
+        var clone = Avers.clone(book);
+
+        assert.notEqual(book, clone);
+        assert.deepEqual(Avers.toJSON(book), Avers.toJSON(clone));
+    });
+    it('should clone collections', function() {
+        var book, library = new Library();
+        library.books.push(book = Avers.parseJSON(Book, jsonBook));
+        var clone = Avers.clone(library.books);
+        assert.deepEqual(Avers.toJSON(library.books), Avers.toJSON(clone));
+    });
+});
