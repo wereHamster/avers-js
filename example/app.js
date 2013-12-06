@@ -36,9 +36,9 @@ Avers.defineCollection(Library, 'books', {
 library = new Library();
 
 var changes = document.querySelector('#changes');
-library.on('change', function(path, value) {
+library.on('change', function(path, op) {
     var li = document.createElement('li');
-    li.innerText = path + ' changed to ' + JSON.stringify(Avers.toJSON(value));
+    li.innerText = path + ' changed to ' + JSON.stringify(Avers.toJSON(op.value));
     changes.appendChild(li);
 });
 

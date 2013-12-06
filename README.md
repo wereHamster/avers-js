@@ -150,12 +150,8 @@ existing object, you can easily update it.
 TODO
 ----
 
- - This library depends on Backbone and Underscore. It needs Backbone only for
-   events. We should find a replacement or write the event code ourselves.
-   It's not that complex. And it only uses a single function from underscore,
-   which should be easy to replace as well.
  - Consider using more event types, such as 'add', 'remove' on Collection.
- - Tests...
+ - Tests... have some, need more.
 
 [backbone]: http://backbonejs.org/
 [object-observe]: http://wiki.ecmascript.org/doku.php?id=harmony:observe
