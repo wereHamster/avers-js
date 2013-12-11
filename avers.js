@@ -125,6 +125,10 @@
     };
 
 
+    function withId(json, obj) {
+        return extend(obj, json.id === undefined ? {} : { id: json.id });
+    }
+
     function descendInto(obj, key) {
         if (Array.isArray(obj)) {
             return obj.idMap[key] || obj.localMap[key];
@@ -227,7 +231,7 @@
                 }
 
                 json.forEach(function(x) {
-                    old.push(extend(desc.parser(x, parent), { id: x.id }));
+                    old.push(withId(json, desc.parser(x, parent)));
                 });
 
                 return old;
@@ -236,9 +240,9 @@
         case 'object':
             if (json) {
                 if (old) {
-                    return extend(Avers.updateObject(old, json), { id: json.id });
+                    return withId(json, Avers.updateObject(old, json));
                 } else {
-                    return extend(desc.parser(json, parent), { id: json.id });
+                    return withId(json, desc.parser(json, parent));
                 }
             }
 
@@ -289,7 +293,7 @@
     }
 
     Avers.parseJSON = function(x, json) {
-        return extend(Avers.updateObject(new x(), json), { id: json.id });
+        return withId(json, Avers.updateObject(new x(), json));
     }
 
     function concatPath(self, child) {
@@ -370,7 +374,7 @@
             return json;
         } else if (Array.isArray(x)) {
             return x.map(function(item) {
-                return extend(Avers.toJSON(item), { id: item.id });
+                return withId(item, Avers.toJSON(item));
             });
         } else {
             return x;
