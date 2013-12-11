@@ -284,6 +284,8 @@
                 prop.forEach(Avers.migrateObject);
             }
         }
+
+        return x;
     }
 
     Avers.deliverChangeRecords = function() {
@@ -294,6 +296,10 @@
 
     Avers.parseJSON = function(x, json) {
         return withId(json, Avers.updateObject(new x(), json));
+    }
+
+    Avers.mk = function(x, json) {
+        return Avers.migrateObject(Avers.parseJSON(x, json));
     }
 
     function concatPath(self, child) {

@@ -263,3 +263,10 @@ describe('Avers.migrateObject', function() {
         assert.isArray(library.books);
     });
 });
+
+describe('Avers.mk', function() {
+    it('should create and migrate the object', function() {
+        var author = Avers.mk(Author, {});
+        assert.equal('John', author.firstName);
+    });
+});
