@@ -101,8 +101,7 @@ describe('Avers.toJSON', function() {
         runTest(Avers.parseJSON(Book, jsonBook), jsonBook);
     })
     it('should handle collections', function() {
-        var library = new Library();
-        Avers.migrateObject(library);
+        var library = Avers.mk(Library, {});
         library.books.push(Avers.parseJSON(Book, jsonBookWithId));
         runTest(library.books, [jsonBookWithId]);
     })
@@ -133,8 +132,7 @@ describe('Change event propagation', function() {
     });
 
     it('should deliver changes when adding elments to a collection', function(done) {
-        var library = new Library();
-        Avers.migrateObject(library);
+        var library = Avers.mk(Library, {});
 
         expectChangeAtPath(library, 'books', done);
         library.books.push(Avers.parseJSON(Book, jsonBook))
@@ -167,8 +165,7 @@ describe('Avers.resolvePath', function() {
         assert.equal('Tomas', Avers.resolvePath(book, 'author.firstName'));
     });
     it('should resolve across arrays', function() {
-        var book, library = new Library();
-        Avers.migrateObject(library);
+        var book, library = Avers.mk(Library, {});
 
         library.books.push(book = Avers.parseJSON(Book, jsonBook));
         Avers.deliverChangeRecords();
@@ -191,8 +188,7 @@ describe('Avers.resolvePath', function() {
         assert.isUndefined(Avers.resolvePath(library.books, '1'));
     });
     it('should ignore properties on arrays', function() {
-        var library = new Library();
-        Avers.migrateObject(library);
+        var library = Avers.mk(Library, {});
 
         library.books.something = '42';
         assert.isUndefined(Avers.resolvePath(library.books, 'something'));
@@ -201,23 +197,20 @@ describe('Avers.resolvePath', function() {
 
 describe('Avers.itemId', function() {
     it('should return undefined until changes have been delivered', function() {
-        var book, library = new Library();
-        Avers.migrateObject(library);
+        var book, library = Avers.mk(Library, {});
 
         library.books.push(book = Avers.parseJSON(Book, jsonBook));
         assert.isUndefined(Avers.itemId(library.books, book));
     });
     it('should return a local id for new items', function() {
-        var book, library = new Library();
-        Avers.migrateObject(library);
+        var book, library = Avers.mk(Library, {});
 
         library.books.push(book = Avers.parseJSON(Book, jsonBook));
         Avers.deliverChangeRecords();
         assert.match(Avers.itemId(library.books, book), /~.*/);
     });
     it('should return the item id when the item has one set', function() {
-        var book, library = new Library();
-        Avers.migrateObject(library);
+        var book, library = Avers.mk(Library, {});
 
         library.books.push(book = Avers.parseJSON(Book, jsonBookWithId));
         Avers.deliverChangeRecords();
@@ -237,8 +230,7 @@ describe('Avers.clone', function() {
         assert.deepEqual(Avers.toJSON(book), Avers.toJSON(clone));
     });
     it('should clone collections', function() {
-        var book, library = new Library();
-        Avers.migrateObject(library);
+        var book, library = Avers.mk(Library, {});
 
         library.books.push(book = Avers.parseJSON(Book, jsonBook));
         var clone = Avers.clone(library.books);
