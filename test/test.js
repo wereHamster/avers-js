@@ -112,8 +112,11 @@ describe('Change event propagation', function() {
     this.timeout(500);
 
     function expectChangeAtPath(obj, expectedPath, done) {
-        obj.on('change', function(path) {
-            if (path === expectedPath) { done(); }
+        obj.on('change', function changeCallback(path) {
+            if (path === expectedPath) {
+                obj.off('change', changeCallback);
+                done();
+            }
         });
     }
 
