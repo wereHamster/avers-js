@@ -174,7 +174,7 @@
     }
 
     Avers.initializeProperties = function(x) {
-        extend(x, Events);
+        extend(Object.getPrototypeOf(x), Events);
 
         Object.observe(x, modelChangesCallback);
 
