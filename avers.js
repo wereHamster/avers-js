@@ -227,7 +227,7 @@
                 }
 
                 json.forEach(function(x) {
-                    old.push(desc.parser(x))
+                    old.push(extend(desc.parser(x), { id: x.id }));
                 });
 
                 return old;
@@ -236,9 +236,9 @@
         case 'object':
             if (json) {
                 if (old) {
-                    return Avers.updateObject(old, json);
+                    return extend(Avers.updateObject(old, json), { id: json.id });
                 } else {
-                    return desc.parser(json);
+                    return extend(desc.parser(json), { id: json.id });
                 }
             }
 
@@ -286,7 +286,7 @@
     }
 
     Avers.parseJSON = function(x, json) {
-        return Avers.updateObject(new x(), json);
+        return extend(Avers.updateObject(new x(), json), { id: json.id });
     }
 
     function concatPath(self, child) {
@@ -366,7 +366,9 @@
 
             return json;
         } else if (Array.isArray(x)) {
-            return x.map(Avers.toJSON);
+            return x.map(function(item) {
+                return extend(Avers.toJSON(item), { id: item.id });
+            });
         } else {
             return x;
         }

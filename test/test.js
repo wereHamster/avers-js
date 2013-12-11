@@ -17,17 +17,19 @@ function Book() {
 }
 
 var jsonBook = {
-    id: undefined,
     type: 'book',
     title: 'Game of Thrones',
     author: jsonAuthor
 }
 
-var jsonBookWithId = Object.create(jsonBook);
-jsonBookWithId.id  = 'some-random-id';
+var jsonBookWithId = {
+    id: 'some-random-id',
+    type: 'book',
+    title: 'Game of Thrones',
+    author: jsonAuthor
+}
 
 Avers.typeTag(Book, 'book');
-Avers.definePrimitive(Book, 'id');
 Avers.definePrimitive(Book, 'title');
 Avers.defineObject(Book, 'author', {
     value: function() { return Avers.parseJSON(Author, jsonAuthor); },
@@ -101,8 +103,8 @@ describe('Avers.toJSON', function() {
     it('should handle collections', function() {
         var library = new Library();
         Avers.migrateObject(library);
-        library.books.push(Avers.parseJSON(Book, jsonBook));
-        runTest(library.books, [jsonBook]);
+        library.books.push(Avers.parseJSON(Book, jsonBookWithId));
+        runTest(library.books, [jsonBookWithId]);
     })
 })
 
