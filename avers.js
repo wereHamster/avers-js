@@ -177,14 +177,6 @@
         extend(Object.getPrototypeOf(x), Events);
 
         Object.observe(x, modelChangesCallback);
-
-        for (var name in x.aversProperties) {
-            if (x.aversProperties[name].type === 'collection') {
-                x[name] = mkCollection();
-            } else {
-                x[name] = result(x.aversProperties[name].value);
-            }
-        }
     }
 
     Avers.defineProperty = function(x, name, desc) {
@@ -227,15 +219,27 @@
     function parseJSON(desc, old, json) {
         switch (desc.type) {
         case 'collection':
-            resetCollection(old);
-            json.forEach(function(x) { old.push(desc.parser(x)) });
-            return old;
+            if (json) {
+                if (!old) {
+                    old = mkCollection();
+                } else {
+                    resetCollection(old);
+                }
+
+                json.forEach(function(x) {
+                    old.push(desc.parser(x))
+                });
+
+                return old;
+            }
 
         case 'object':
-            if (old) {
-                return Avers.updateObject(old, json);
-            } else {
-                return desc.parser(json);
+            if (json) {
+                if (old) {
+                    return Avers.updateObject(old, json);
+                } else {
+                    return desc.parser(json);
+                }
             }
 
         case 'primitive':
@@ -250,6 +254,29 @@
         }
 
         return x;
+    }
+
+    Avers.migrateObject = function(x) {
+        for (var name in x.aversProperties) {
+            var desc = x.aversProperties[name]
+              , prop = x[name];
+
+            if (prop == null) {
+                if (desc.type == 'collection') {
+                    x[name] = mkCollection();
+                } else {
+                    var value = result(desc, 'value');
+                    if (value != prop) {
+                        Avers.migrateObject(value);
+                        x[name] = value;
+                    }
+                }
+            } else if (desc.type == 'object') {
+                Avers.migrateObject(prop);
+            } else if (desc.type == 'collection') {
+                prop.forEach(Avers.migrateObject);
+            }
+        }
     }
 
     Avers.deliverChangeRecords = function() {

@@ -8,8 +8,8 @@ var jsonAuthor = {
     firstName: 'Tomas', lastName: 'Carnecky'
 }
 
-Avers.definePrimitive(Author, 'firstName');
-Avers.definePrimitive(Author, 'lastName');
+Avers.definePrimitive(Author, 'firstName', { value: 'John' });
+Avers.definePrimitive(Author, 'lastName',  { value: 'Doe'  });
 
 
 function Book() {
@@ -30,6 +30,7 @@ Avers.typeTag(Book, 'book');
 Avers.definePrimitive(Book, 'id');
 Avers.definePrimitive(Book, 'title');
 Avers.defineObject(Book, 'author', {
+    value: function() { return Avers.parseJSON(Author, jsonAuthor); },
     parser: Avers.createParser(Author)
 });
 
@@ -56,8 +57,8 @@ Avers.defineCollection(Library, 'books', {
 });
 
 
-describe('JSON parser', function() {
-    it('Avers.parseJSON should create a new object from json', function() {
+describe('Avers.parseJSON', function() {
+    it('should create a new object from json', function() {
         var book = Avers.parseJSON(Book, jsonBook);
         assert.equal('book', book.type);
         assert.equal('Game of Thrones', book.title);
@@ -65,6 +66,14 @@ describe('JSON parser', function() {
         assert.equal('Carnecky', book.author.lastName);
     })
 
+    it('should accept an empty JSON if the fields have a default', function() {
+        var author = Avers.parseJSON(Author, {});
+        assert.isUndefined(author.firstName);
+        assert.isUndefined(author.lastName);
+    })
+})
+
++describe('Avers.updateObject', function() {
     it('Avers.updateObject should update an existing object', function() {
         var book = new Book();
         Avers.updateObject(book, jsonBook);
@@ -91,6 +100,7 @@ describe('Avers.toJSON', function() {
     })
     it('should handle collections', function() {
         var library = new Library();
+        Avers.migrateObject(library);
         library.books.push(Avers.parseJSON(Book, jsonBook));
         runTest(library.books, [jsonBook]);
     })
@@ -122,6 +132,7 @@ describe('Change event propagation', function() {
 
     it('should deliver changes when adding elments to a collection', function(done) {
         var library = new Library();
+        Avers.migrateObject(library);
 
         expectChangeAtPath(library, 'books', done);
         library.books.push(Avers.parseJSON(Book, jsonBook))
@@ -155,6 +166,8 @@ describe('Avers.resolvePath', function() {
     });
     it('should resolve across arrays', function() {
         var book, library = new Library();
+        Avers.migrateObject(library);
+
         library.books.push(book = Avers.parseJSON(Book, jsonBook));
         Avers.deliverChangeRecords();
 
@@ -177,6 +190,8 @@ describe('Avers.resolvePath', function() {
     });
     it('should ignore properties on arrays', function() {
         var library = new Library();
+        Avers.migrateObject(library);
+
         library.books.something = '42';
         assert.isUndefined(Avers.resolvePath(library.books, 'something'));
     });
@@ -185,17 +200,23 @@ describe('Avers.resolvePath', function() {
 describe('Avers.itemId', function() {
     it('should return undefined until changes have been delivered', function() {
         var book, library = new Library();
+        Avers.migrateObject(library);
+
         library.books.push(book = Avers.parseJSON(Book, jsonBook));
         assert.isUndefined(Avers.itemId(library.books, book));
     });
     it('should return a local id for new items', function() {
         var book, library = new Library();
+        Avers.migrateObject(library);
+
         library.books.push(book = Avers.parseJSON(Book, jsonBook));
         Avers.deliverChangeRecords();
         assert.match(Avers.itemId(library.books, book), /~.*/);
     });
     it('should return the item id when the item has one set', function() {
         var book, library = new Library();
+        Avers.migrateObject(library);
+
         library.books.push(book = Avers.parseJSON(Book, jsonBookWithId));
         Avers.deliverChangeRecords();
         assert.equal(Avers.itemId(library.books, book), jsonBookWithId.id);
@@ -215,8 +236,28 @@ describe('Avers.clone', function() {
     });
     it('should clone collections', function() {
         var book, library = new Library();
+        Avers.migrateObject(library);
+
         library.books.push(book = Avers.parseJSON(Book, jsonBook));
         var clone = Avers.clone(library.books);
         assert.deepEqual(Avers.toJSON(library.books), Avers.toJSON(clone));
+    });
+});
+
+describe('Avers.migrateObject', function() {
+    it('should set primitive properties to their default value', function() {
+        var author = Avers.parseJSON(Author, {});
+        Avers.migrateObject(author);
+        assert.equal('John', author.firstName);
+    });
+    it('should initialize objects with their default value', function() {
+        var book = Avers.parseJSON(Book, {});
+        Avers.migrateObject(book);
+        assert.instanceOf(book.author, Author);
+    });
+    it('should initialize collections to an empty array', function() {
+        var library = Avers.parseJSON(Library, {});
+        Avers.migrateObject(library);
+        assert.isArray(library.books);
     });
 });
