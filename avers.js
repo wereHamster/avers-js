@@ -210,13 +210,13 @@
                 typeMap[x.prototype.aversProperties.type.value] = x;
             });
 
-            return function(json) {
-                return Avers.parseJSON(typeMap[json.type], json);
+            return function(json, parent) {
+                return Avers.parseJSON(typeMap[parent.type || json.type], json);
             }
         }
     }
 
-    function parseJSON(desc, old, json) {
+    function parseJSON(desc, old, json, parent) {
         switch (desc.type) {
         case 'collection':
             if (json) {
@@ -227,7 +227,7 @@
                 }
 
                 json.forEach(function(x) {
-                    old.push(extend(desc.parser(x), { id: x.id }));
+                    old.push(extend(desc.parser(x, parent), { id: x.id }));
                 });
 
                 return old;
@@ -238,7 +238,7 @@
                 if (old) {
                     return extend(Avers.updateObject(old, json), { id: json.id });
                 } else {
-                    return extend(desc.parser(json), { id: json.id });
+                    return extend(desc.parser(json, parent), { id: json.id });
                 }
             }
 
@@ -250,7 +250,10 @@
     Avers.updateObject = function(x, json) {
         for (var name in x.aversProperties) {
             var desc = x.aversProperties[name];
-            x[name] = parseJSON(desc, x[name], json[name]);
+
+            if (json[name] != null) {
+                x[name] = parseJSON(desc, x[name], json[name], json);
+            }
         }
 
         return x;
