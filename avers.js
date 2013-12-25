@@ -188,16 +188,29 @@
         x.prototype.aversProperties[name] = desc;
     }
 
-    Avers.definePrimitive = function(x, name, desc) {
-        Avers.defineProperty(x, name, extend({}, desc, { type: 'primitive' }));
+    Avers.definePrimitive = function(x, name, defaultValue) {
+        var desc = { type:   'primitive'
+                   , value:  defaultValue
+                   };
+
+        Avers.defineProperty(x, name, desc);
     }
 
-    Avers.defineObject = function(x, name, desc) {
-        Avers.defineProperty(x, name, extend({}, desc, { type: 'object' }));
+    Avers.defineObject = function(x, name, klass, json) {
+        var desc = { type:   'object'
+                   , value:  function() { return Avers.mk(klass, json || {}) }
+                   , parser: Avers.createParser(klass)
+                   };
+
+        Avers.defineProperty(x, name, desc);
     }
 
-    Avers.defineCollection = function(x, name, desc) {
-        Avers.defineProperty(x, name, extend({}, desc, { type: 'collection' }));
+    Avers.defineCollection = function(x, name, klass) {
+        var desc = { type:   'collection'
+                   , parser: Avers.createParser(klass)
+                   };
+
+        Avers.defineProperty(x, name, desc);
     }
 
     Avers.typeTag = function(x, value) {

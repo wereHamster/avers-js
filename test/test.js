@@ -8,8 +8,8 @@ var jsonAuthor = {
     firstName: 'Tomas', lastName: 'Carnecky'
 }
 
-Avers.definePrimitive(Author, 'firstName', { value: 'John' });
-Avers.definePrimitive(Author, 'lastName',  { value: 'Doe'  });
+Avers.definePrimitive(Author, 'firstName', 'John');
+Avers.definePrimitive(Author, 'lastName',  'Doe');
 
 
 function Book() {
@@ -31,10 +31,7 @@ var jsonBookWithId = {
 
 Avers.typeTag(Book, 'book');
 Avers.definePrimitive(Book, 'title');
-Avers.defineObject(Book, 'author', {
-    value: function() { return Avers.parseJSON(Author, jsonAuthor); },
-    parser: Avers.createParser(Author)
-});
+Avers.defineObject(Book, 'author', Author);
 
 
 function Magazine() {
@@ -54,9 +51,8 @@ function Library() {
     Avers.initializeProperties(this);
 }
 
-Avers.defineCollection(Library, 'books', {
-    parser: Avers.createParser(Book)
-});
+Avers.defineCollection(Library, 'books', Book);
+
 
 
 describe('Avers.parseJSON', function() {
