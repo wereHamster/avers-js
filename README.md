@@ -67,9 +67,7 @@ There are three types of properties:
     }
 
     Avers.definePrimitive(Book, 'title');
-    Avers.defineObject(Book, 'author', {
-        parser: Avers.createParser(Author)
-    });
+    Avers.defineObject(Book, 'author', Author);
 
     function mkBook(title) {
         var book = new Book();
@@ -115,9 +113,7 @@ collection. But you must not assign an array to that property.
         Avers.initializeProperties(this);
     }
 
-    Avers.defineCollection(Library, 'books', {
-        parser: Avers.createParser(Book)
-    });
+    Avers.defineCollection(Library, 'books', Book);
 
     var library = new Library;
 ```

@@ -199,7 +199,17 @@
     Avers.defineObject = function(x, name, klass, json) {
         var desc = { type:   'object'
                    , value:  function() { return Avers.mk(klass, json || {}) }
-                   , parser: Avers.createParser(klass)
+                   , parser: createObjectParser(klass)
+                   };
+
+        Avers.defineProperty(x, name, desc);
+    }
+
+    Avers.defineVariant = function(x, name, typeField, typeMap) {
+        var desc = { type:      'variant'
+                   , parser:    createVariantParser(typeField, typeMap)
+                   , typeField: typeField
+                   , typeMap:   typeMap
                    };
 
         Avers.defineProperty(x, name, desc);
@@ -207,29 +217,19 @@
 
     Avers.defineCollection = function(x, name, klass) {
         var desc = { type:   'collection'
-                   , parser: Avers.createParser(klass)
+                   , parser: createObjectParser(klass)
                    };
 
         Avers.defineProperty(x, name, desc);
     }
 
-    Avers.typeTag = function(x, value) {
-        Avers.definePrimitive(x, 'type', { value: value, writeable: false });
+    function createObjectParser(klass) {
+        return function(json) { return Avers.parseJSON(klass, json) }
     }
 
-    Avers.createParser = function(x) {
-        var args = slice.call(arguments);
-        if (args.length == 1) {
-            return function(json) { return Avers.parseJSON(x, json) }
-        } else {
-            var typeMap = {};
-            args.forEach(function(x) {
-                typeMap[x.prototype.aversProperties.type.value] = x;
-            });
-
-            return function(json, parent) {
-                return Avers.parseJSON(typeMap[parent.type || json.type], json);
-            }
+    function createVariantParser(typeField, typeMap) {
+        return function(json, parent) {
+            return Avers.parseJSON(typeMap[parent[typeField]], json);
         }
     }
 
@@ -251,6 +251,7 @@
             }
 
         case 'object':
+        case 'variant':
             if (json) {
                 if (old) {
                     return withId(json, Avers.updateObject(old, json));
@@ -378,19 +379,50 @@
         });
     }
 
+    function typeName(typeMap, klass) {
+        for (var type in typeMap) {
+            if (typeMap[type] == klass) {
+                return type;
+            }
+        }
+    }
+
+    function objectJSON(x) {
+        var json = Object.create(null);
+
+        for (var name in x.aversProperties) {
+            var desc = x.aversProperties[name];
+
+            switch (desc.type) {
+            case 'primitive':
+                json[name] = x[name];
+                break;
+
+            case 'object':
+                json[name] = x[name] ? Avers.toJSON(x[name]) : null;
+                break;
+
+            case 'variant':
+                var value = x[name];
+
+                if (value) {
+                    json[name]           = Avers.toJSON(value);
+                    json[desc.typeField] = typeName(desc.typeMap, value.constructor)
+                }
+                break;
+
+            case 'collection':
+                json[name] = Avers.toJSON(x[name]);
+                break;
+            }
+        }
+
+        return json;
+    }
+
     Avers.toJSON = function(x) {
         if (x === Object(x) && x.aversProperties) {
-            var json = Object.create(null);
-
-            for (var name in x.aversProperties) {
-                switch (x.aversProperties[name].type) {
-                case 'primitive':  json[name] = x[name]; break;
-                case 'object':     json[name] = x[name] ? Avers.toJSON(x[name]) : null; break;
-                case 'collection': json[name] = Avers.toJSON(x[name]); break;
-                }
-            }
-
-            return json;
+            return objectJSON(x);
         } else if (Array.isArray(x)) {
             return x.map(function(item) {
                 return withId(item, Avers.toJSON(item));
