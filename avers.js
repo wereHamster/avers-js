@@ -343,37 +343,37 @@
             }
 
             if (x.type === 'new') {
-                self.trigger('change', x.name, toObjectOperation(x));
+                Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
 
                 var value = self[x.name];
                 if (value) {
                     if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
-                        self.listenTo(value, 'change', function(key, operation) {
-                            self.trigger('change', concatPath(x.name, key), operation);
+                        Events.listenTo.call(self, value, 'change', function(key, operation) {
+                            Events.trigger.call(self, 'change', concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'updated') {
-                self.trigger('change', x.name, toObjectOperation(x));
+                Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
 
                 if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
                     if (x.oldValue) {
-                        self.stopListening(x.oldValue);
+                        Events.stopListening.call(self, x.oldValue);
                     }
 
                     var value = self[x.name];
                     if (value) {
-                        self.stopListening(value);
-                        self.listenTo(value, 'change', function(key, operation) {
-                            self.trigger('change', concatPath(x.name, key), operation);
+                        Events.stopListening.call(self, value);
+                        Events.listenTo.call(self, value, 'change', function(key, operation) {
+                            Events.trigger.call(self, 'change', concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'deleted') {
-                self.trigger('change', x.name, toObjectOperation(x));
+                Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
 
                 if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
-                    self.stopListening(x.oldValue);
+                    Events.stopListening.call(self, x.oldValue);
                 }
             }
         });
@@ -453,7 +453,7 @@
             if (x.type === 'splice') {
                 var insert = self.slice(x.index, x.index + x.addedCount);
 
-                self.trigger('change', null, {
+                Events.trigger.call(self, 'change', null, {
                     type:       'splice',
                     object:     x.object,
                     index:      x.index,
@@ -462,7 +462,7 @@
                 });
 
                 x.removed.forEach(function(x) {
-                    self.stopListening(x);
+                    Events.stopListening.call(self, x);
 
                     delete self.idMap[x.id]
                     delete self.localMap[x.id]
@@ -475,9 +475,9 @@
                         self.localMap[uniqueId('~')] = x;
                     }
 
-                    self.listenTo(x, 'change', function(key, value) {
+                    Events.listenTo.call(self, x, 'change', function(key, value) {
                         var id = Avers.itemId(self, x);
-                        self.trigger('change', concatPath(id, key), value);
+                        Events.trigger.call(self, 'change', concatPath(id, key), value);
                     });
                 });
             }
