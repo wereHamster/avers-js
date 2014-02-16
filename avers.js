@@ -183,7 +183,7 @@
         Object.observe(x, modelChangesCallback);
     }
 
-    Avers.defineProperty = function(x, name, desc) {
+    function defineProperty(x, name, desc) {
         x.prototype.aversProperties || (x.prototype.aversProperties = {});
         x.prototype.aversProperties[name] = desc;
     }
@@ -193,7 +193,7 @@
                    , value:  defaultValue
                    };
 
-        Avers.defineProperty(x, name, desc);
+        defineProperty(x, name, desc);
     }
 
     Avers.defineObject = function(x, name, klass, json) {
@@ -202,7 +202,7 @@
                    , parser: createObjectParser(klass)
                    };
 
-        Avers.defineProperty(x, name, desc);
+        defineProperty(x, name, desc);
     }
 
     Avers.defineVariant = function(x, name, typeField, typeMap) {
@@ -212,7 +212,7 @@
                    , typeMap:   typeMap
                    };
 
-        Avers.defineProperty(x, name, desc);
+        defineProperty(x, name, desc);
     }
 
     Avers.defineCollection = function(x, name, klass) {
@@ -220,7 +220,7 @@
                    , parser: createObjectParser(klass)
                    };
 
-        Avers.defineProperty(x, name, desc);
+        defineProperty(x, name, desc);
     }
 
     function createObjectParser(klass) {
