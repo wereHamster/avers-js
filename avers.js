@@ -342,7 +342,7 @@
                 return;
             }
 
-            if (x.type === 'new') {
+            if (x.type === 'add' || x.type === 'new') {
                 Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
 
                 var value = self[x.name];
@@ -353,7 +353,7 @@
                         });
                     }
                 }
-            } else if (x.type === 'updated') {
+            } else if (x.type === 'update' || x.type === 'updated') {
                 Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
 
                 if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
@@ -369,7 +369,7 @@
                         });
                     }
                 }
-            } else if (x.type === 'deleted') {
+            } else if (x.type === 'delete' || x.type === 'deleted') {
                 Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
 
                 if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
