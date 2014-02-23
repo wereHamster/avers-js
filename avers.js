@@ -479,10 +479,12 @@
                         self.localMap[uniqueId('~')] = x;
                     }
 
-                    Events.listenTo.call(self, x, 'change', function(key, value) {
-                        var id = Avers.itemId(self, x);
-                        Events.trigger.call(self, 'change', concatPath(id, key), value);
-                    });
+                    if (Object(x) === x) {
+                        Events.listenTo.call(self, x, 'change', function(key, value) {
+                            var id = Avers.itemId(self, x);
+                            Events.trigger.call(self, 'change', concatPath(id, key), value);
+                        });
+                    }
                 });
             }
         });

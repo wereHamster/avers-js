@@ -18,17 +18,20 @@ function Book() {
 
 var jsonBook = {
     title: 'Game of Thrones',
-    author: jsonAuthor
+    author: jsonAuthor,
+    tags: ['violent', 'fantasy']
 }
 
 var jsonBookWithId = {
     id: 'some-random-id',
     title: 'Game of Thrones',
-    author: jsonAuthor
+    author: jsonAuthor,
+    tags: ['violent', 'fantasy']
 }
 
 Avers.definePrimitive(Book, 'title');
 Avers.defineObject(Book, 'author', Author);
+Avers.defineCollection(Book, 'tags', String);
 
 
 function Magazine() {
