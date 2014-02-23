@@ -309,7 +309,11 @@
     }
 
     Avers.parseJSON = function(x, json) {
-        return withId(json, Avers.updateObject(new x(), json));
+        if (x === String || x === Number) {
+            return new x(json).valueOf();
+        } else {
+            return withId(json, Avers.updateObject(new x(), json));
+        }
     }
 
     Avers.mk = function(x, json) {
