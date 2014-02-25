@@ -207,7 +207,7 @@
 
     Avers.defineVariant = function(x, name, typeField, typeMap) {
         var desc = { type:      'variant'
-                   , parser:    createVariantParser(typeField, typeMap)
+                   , parser:    createVariantParser(name, typeField, typeMap)
                    , typeField: typeField
                    , typeMap:   typeMap
                    };
@@ -227,9 +227,10 @@
         return function(json) { return Avers.parseJSON(klass, json) }
     }
 
-    function createVariantParser(typeField, typeMap) {
+    function createVariantParser(name, typeField, typeMap) {
         return function(json, parent) {
-            return Avers.parseJSON(typeMap[parent[typeField]], json);
+            var type = parent[typeField] || parent[name][typeField]
+            return Avers.parseJSON(typeMap[type], json);
         }
     }
 
