@@ -125,6 +125,17 @@
     };
 
 
+    // Symbol used as the key for the avers property descriptor object. It is
+    // kept private so only the Avers module has access to the descriptors.
+    var aversPropertiesSymbol = Symbol('aversProperties');
+
+
+    // Return the property descriptors for the given object. Returns undefined
+    // if the object has no properties defined on it.
+    function aversProperties(obj) {
+        return obj[aversPropertiesSymbol];
+    }
+
     function withId(json, obj) {
         return extend(obj, json.id === undefined ? {} : { id: json.id });
     }
@@ -132,7 +143,7 @@
     function descendInto(obj, key) {
         if (Array.isArray(obj)) {
             return obj.idMap[key] || obj.localMap[key];
-        } else if (obj === Object(obj) && obj.aversProperties && obj.aversProperties[key]) {
+        } else if (obj === Object(obj) && aversProperties(obj) && aversProperties(obj)[key]) {
             return obj[key];
         }
     }
@@ -148,7 +159,7 @@
     Avers.clone = function(x) {
         if (Array.isArray(x)) {
             return mkCollection(x.map(Avers.clone));
-        } else if (x === Object(x) && x.aversProperties) {
+        } else if (x === Object(x) && aversProperties(x)) {
             return Avers.parseJSON(x.constructor, Avers.toJSON(x));
         } else {
             return x;
@@ -184,8 +195,11 @@
     }
 
     function defineProperty(x, name, desc) {
-        x.prototype.aversProperties || (x.prototype.aversProperties = {});
-        x.prototype.aversProperties[name] = desc;
+        var proto      = x.prototype
+          , aversProps = aversProperties(proto) || Object.create(null);
+
+        aversProps[name] = desc;
+        proto[aversPropertiesSymbol] = aversProps;
     }
 
     Avers.definePrimitive = function(x, name, defaultValue) {
@@ -267,8 +281,10 @@
     }
 
     Avers.updateObject = function(x, json) {
-        for (var name in x.aversProperties) {
-            var desc = x.aversProperties[name];
+        var aversProps = aversProperties(x);
+
+        for (var name in aversProps) {
+            var desc = aversProps[name];
 
             if (json[name] != null) {
                 x[name] = parseJSON(desc, x[name], json[name], json);
@@ -279,8 +295,10 @@
     }
 
     Avers.migrateObject = function(x) {
-        for (var name in x.aversProperties) {
-            var desc = x.aversProperties[name]
+        var aversProps = aversProperties(x);
+
+        for (var name in aversProps) {
+            var desc = aversProps[name]
               , prop = x[name];
 
             if (prop == null) {
@@ -341,7 +359,7 @@
     function modelChangesCallback(changes) {
         changes.forEach(function(x) {
             var self = x.object
-              , propertyDescriptor = self.aversProperties[x.name];
+              , propertyDescriptor = aversProperties(self)[x.name];
 
             if (!propertyDescriptor) {
                 return;
@@ -393,10 +411,11 @@
     }
 
     function objectJSON(x) {
-        var json = Object.create(null);
+        var json       = Object.create(null)
+          , aversProps = aversProperties(x);
 
-        for (var name in x.aversProperties) {
-            var desc = x.aversProperties[name];
+        for (var name in aversProps) {
+            var desc = aversProps[name];
 
             switch (desc.type) {
             case 'primitive':
@@ -426,7 +445,7 @@
     }
 
     Avers.toJSON = function(x) {
-        if (x === Object(x) && x.aversProperties) {
+        if (x === Object(x) && aversProperties(x)) {
             return objectJSON(x);
         } else if (Array.isArray(x)) {
             return x.map(function(item) {
