@@ -11,6 +11,11 @@ var jsonAuthor = {
 Avers.definePrimitive(Author, 'firstName', 'John');
 Avers.definePrimitive(Author, 'lastName',  'Doe');
 
+var unknownAuthor = Avers.mk(Author, {
+    firstName: 'John',
+    lastName: 'Doe',
+});
+
 
 function Book() {
     Avers.initializeProperties(this);
@@ -30,7 +35,7 @@ var jsonBookWithId = {
 }
 
 Avers.definePrimitive(Book, 'title');
-Avers.defineObject(Book, 'author', Author);
+Avers.defineObject(Book, 'author', Author, unknownAuthor);
 Avers.defineCollection(Book, 'tags', String);
 
 
@@ -56,7 +61,16 @@ var jsonItem = {
     content: jsonBook
 }
 
-Avers.defineVariant(Item, 'content', 'type', { book: Book, magazine: Magazine });
+var def = Avers.mk(Book, jsonBook);
+Avers.defineVariant(Item, 'content', 'type', { book: Book, magazine: Magazine }, def);
+
+
+function NullableTest() {
+    Avers.initializeProperties(this);
+}
+
+Avers.defineObject(NullableTest, 'obj');
+Avers.defineVariant(NullableTest, 'variant', 'type', { book: Book, magazine: Magazine });
 
 
 function Library() {
@@ -261,6 +275,21 @@ describe('Avers.migrateObject', function() {
         var book = Avers.parseJSON(Book, {});
         Avers.migrateObject(book);
         assert.instanceOf(book.author, Author);
+    });
+    it('should not initialize object properties without a default value', function() {
+        var nt = Avers.parseJSON(NullableTest, {});
+        Avers.migrateObject(nt);
+        assert(!nt.obj);
+    });
+    it('should not initialize variant properties without a default value', function() {
+        var nt = Avers.parseJSON(NullableTest, {});
+        Avers.migrateObject(nt);
+        assert(!nt.variant);
+    });
+    it('should initialize variant properties with a default value', function() {
+        var item = Avers.parseJSON(Item, {});
+        Avers.migrateObject(item);
+        assert.instanceOf(item.content, Book);
     });
     it('should initialize collections to an empty array', function() {
         var library = Avers.parseJSON(Library, {});

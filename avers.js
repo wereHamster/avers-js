@@ -210,21 +210,32 @@
         defineProperty(x, name, desc);
     }
 
-    Avers.defineObject = function(x, name, klass, json) {
+    Avers.defineObject = function(x, name, klass, def) {
         var desc = { type:   'object'
-                   , value:  function() { return Avers.mk(klass, json || {}) }
                    , parser: createObjectParser(klass)
                    };
+
+        if (def) {
+            desc.value = function() {
+                return Avers.mk(klass, def);
+            };
+        }
 
         defineProperty(x, name, desc);
     }
 
-    Avers.defineVariant = function(x, name, typeField, typeMap) {
+    Avers.defineVariant = function(x, name, typeField, typeMap, def) {
         var desc = { type:      'variant'
                    , parser:    createVariantParser(name, typeField, typeMap)
                    , typeField: typeField
                    , typeMap:   typeMap
                    };
+
+        if (def) {
+            desc.value = function() {
+                return Avers.clone(def);
+            };
+        }
 
         defineProperty(x, name, desc);
     }
@@ -311,7 +322,7 @@
                         x[name] = value;
                     }
                 }
-            } else if (desc.type == 'object') {
+            } else if (desc.type == 'object' || desc.type == 'variant') {
                 Avers.migrateObject(prop);
             } else if (desc.type == 'collection') {
                 prop.forEach(Avers.migrateObject);
