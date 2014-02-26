@@ -410,6 +410,15 @@
         };
     }
 
+
+    // Return true if the property can generate change events and thus the
+    // parent should listen to events.
+    function isObservableProperty(propertyDescriptor) {
+        var type = propertyDescriptor.type;
+        return type === 'object' || type === 'variant' || type === 'collection';
+    }
+
+
     function modelChangesCallback(changes) {
         changes.forEach(function(x) {
             var self = x.object
@@ -424,7 +433,7 @@
 
                 var value = self[x.name];
                 if (value) {
-                    if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
+                    if (isObservableProperty(propertyDescriptor)) {
                         Events.listenTo.call(self, value, 'change', function(key, operation) {
                             Events.trigger.call(self, 'change', concatPath(x.name, key), operation);
                         });
@@ -433,7 +442,7 @@
             } else if (x.type === 'update' || x.type === 'updated') {
                 Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
 
-                if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
+                if (isObservableProperty(propertyDescriptor)) {
                     if (x.oldValue) {
                         Events.stopListening.call(self, x.oldValue);
                     }
@@ -449,7 +458,7 @@
             } else if (x.type === 'delete' || x.type === 'deleted') {
                 Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
 
-                if (propertyDescriptor.type === 'object' || propertyDescriptor.type === 'collection') {
+                if (isObservableProperty(propertyDescriptor)) {
                     Events.stopListening.call(self, x.oldValue);
                 }
             }
