@@ -1,6 +1,5 @@
-(function() {
+(function(root) {
     var Avers
-      , root = this
       , slice = Array.prototype.slice
       , splice = Array.prototype.splice;
 
@@ -42,8 +41,9 @@
 
     // Copied from Backbone.Events
 
-    var triggerEvents = function(events, args) {
+    function triggerEvents(events, args) {
         var ev, i = -1, l = events.length, a1 = args[0], a2 = args[1], a3 = args[2];
+
         switch (args.length) {
         case 0: while (++i < l) (ev = events[i]).callback.call(ev.ctx); return;
         case 1: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1); return;
@@ -54,38 +54,63 @@
     };
 
 
+    // A WeakMap which holds event callbacks. The key is the object to which
+    // the callbacks are attached to. This means when the object is no longer
+    // referenced (and the GC disposes it), the callbacks attached to the
+    // object are also disposed.
+    var objectEventsRegistry = new WeakMap();
+    var objectListenersRegistry = new WeakMap();
+
+
     var Events = {
 
         on: function(name, callback, context) {
-            this._events || (this._events = {});
-            var events = this._events[name] || (this._events[name] = []);
+            var objectEvents = objectEventsRegistry.get(this)
+            if (!objectEvents) {
+                objectEvents = Object.create(null);
+                objectEventsRegistry.set(this, objectEvents);
+            }
+
+            var events = objectEvents[name] || (objectEvents[name] = []);
             events.push({callback: callback, context: context, ctx: context || this});
+
             return this;
         },
 
         off: function(name, callback, context) {
-            var retain, ev, events, names, i, l, j, k;
-            if (!this._events) return this;
             if (!name && !callback && !context) {
-                this._events = {};
+                objectEventsRegistry.set(this, Object.create(null));
                 return this;
             }
 
-            names = name ? [name] : Object.keys(this._events);
-            for (i = 0, l = names.length; i < l; i++) {
-                name = names[i];
-                if (events = this._events[name]) {
-                    this._events[name] = retain = [];
-                    if (callback || context) {
-                        for (j = 0, k = events.length; j < k; j++) {
-                            ev = events[j];
-                            if ((callback && callback !== ev.callback && callback !== ev.callback._callback) ||
-                                (context && context !== ev.context)) {
-                                retain.push(ev);
+            var objectEvents = objectEventsRegistry.get(this);
+            if (objectEvents) {
+                var names    = name ? [name] : Object.keys(objectEvents)
+                  , numNames = names.length;
+
+                for (var i = 0; i < numNames; i++) {
+                    var n      = names[i]
+                      , events = objectEvents[n];
+
+                    if (events) {
+                        var retain = [];
+
+                        if (callback || context) {
+                            for (var j = 0, k = events.length; j < k; j++) {
+                                var ev = events[j];
+                                if ((callback && callback !== ev.callback) ||
+                                    (context && context !== ev.context)) {
+                                    retain.push(ev);
+                                }
                             }
                         }
+
+                        if (!retain.length) {
+                            delete objectEvents[n];
+                        } else {
+                            objectEvents[n] = retain;
+                        }
                     }
-                    if (!retain.length) delete this._events[name];
                 }
             }
 
@@ -93,35 +118,53 @@
         },
 
         trigger: function(name) {
-            if (!this._events) return this;
-            var args = slice.call(arguments, 1);
-            var events = this._events[name];
-            if (events) triggerEvents(events, args);
-            return this;
-        },
-
-        stopListening: function(obj, name, callback) {
-            var listeners = this._listeners;
-            if (!listeners) return this;
-            var deleteListener = !name && !callback;
-            if (typeof name === 'object') callback = this;
-            if (obj) (listeners = {})[obj._listenerId] = obj;
-            for (var id in listeners) {
-                listeners[id].off(name, callback, this);
-                if (deleteListener) delete this._listeners[id];
+            var objectEvents = objectEventsRegistry.get(this);
+            if (objectEvents) {
+                var events = objectEvents[name];
+                if (events) {
+                    var args = slice.call(arguments, 1);
+                    triggerEvents(events, args);
+                }
             }
+
             return this;
         },
 
         listenTo: function(obj, name, callback) {
-            var listeners = this._listeners || (this._listeners = {});
+            var listeners = objectListenersRegistry.get(this);
+            if (!listeners) {
+                // TODO: Make this a Map. But that requires
+                // Map.prototype.forEach or map iterators. Sadly, Chrome
+                // doesn't implement either of those yet.
+                listeners = Object.create(null);
+                objectListenersRegistry.set(this, listeners);
+            }
+
             var id = obj._listenerId || (obj._listenerId = uniqueId('l'));
             listeners[id] = obj;
             if (typeof name === 'object') callback = this;
             obj.on(name, callback, this);
+
+            return this;
+        },
+
+        stopListening: function(obj, name, callback) {
+            var listeners = objectListenersRegistry.get(this);
+            if (listeners) {
+                var deleteListener = !name && !callback;
+                if (typeof name === 'object') callback = this;
+                if (obj) (listeners = {})[obj._listenerId] = obj;
+                for (var id in listeners) {
+                    listeners[id].off(name, callback, this);
+
+                    if (deleteListener) {
+                        delete listeners[id];
+                    }
+                }
+            }
+
             return this;
         }
-
     };
 
 
