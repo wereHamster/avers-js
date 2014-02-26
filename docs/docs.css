@@ -16,6 +16,11 @@ h2 {
     margin-left: 1rem;
 }
 
+code {
+    color: hsl(200, 95%, 55%);
+    font-size: 1.2rem;
+}
+
 .signature {
     font-size: 1.2rem;
     padding: 0.5rem 1rem;
