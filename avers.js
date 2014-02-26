@@ -218,8 +218,9 @@
     }
 
     function applySpliceOperation(obj, path, op) {
-        var obj  = Avers.resolvePath(obj, path)
-          , args = [ op.index, op.remove.length ].concat(op.insert.map(Avers.clone));
+        var obj    = Avers.resolvePath(obj, path)
+          , insert = op.insert.map(function(x) { return withId(x, Avers.clone(x)); })
+          , args   = [ op.index, op.remove.length ].concat(insert);
 
         splice.apply(obj, args);
     }
