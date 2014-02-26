@@ -65,10 +65,6 @@ Avers.defineObject(User, 'address', Address);</div>
                 The functions take the constructor and a JSON object describing the properties
                 as arguments, and return a new instance of the type.
             <p>
-            <ul>
-                <li>Define properties on the class constructor.</li>
-                <li>Call <code>initializeProperties(this)</code> in the constructor.</li>
-            </ul>
             <div class="code">var user1 = Avers.parseJSON(User, {});
 var user2 = Avers.mk(User, {})</div>
         </div>
