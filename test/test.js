@@ -158,6 +158,13 @@ describe('Change event propagation', function() {
         book.author.firstName = 'TOMAS';
     });
 
+    it('should deliver changes inside variant properties', function(done) {
+        var item = Avers.mk(Item, jsonItem);
+
+        expectChangeAtPath(item, 'content.author.firstName', done);
+        item.content.author.firstName = 'TOMAS';
+    });
+
     it('should deliver changes when adding elments to a collection', function(done) {
         var library = Avers.mk(Library, {});
 
