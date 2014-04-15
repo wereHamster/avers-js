@@ -14,19 +14,19 @@
         <div class="content">
             <p>
                 An Avers object is a plain JavaScript class which is observable by Avers.
-                There are two steps you need to take to make your class available to Avers:
+                The only thing you have to do to make your class an Avers object is to
+                define the desired properties.
             <p>
-            <ul>
-                <li>Define properties on the class constructor.</li>
-                <li>Call <code>initializeProperties(this)</code> in the constructor.</li>
-            </ul>
+            <p>
+                The constructor should not take any arguments. You can do basic
+                initialization like setting non-Avers properties, but should not
+                do anything more in the constructor.
+            </p>
             <div class="note">
                 Currently Avers objects must be JavaScript classes. In the future we'll also
                 make it possible to use POJOs.
             </div>
-            <div class="code">function User() {
-    Avers.initializeProperties(this);
-}
+            <div class="code">function User() {}
 
 Avers.definePrimitive(User, 'name', 'John Doe');
 Avers.defineObject(User, 'address', Address);</div>
