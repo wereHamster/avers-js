@@ -1,7 +1,6 @@
 var assert = chai.assert;
 
 function Author() {
-    Avers.initializeProperties(this);
 }
 
 var jsonAuthor = {
@@ -18,7 +17,6 @@ var unknownAuthor = Avers.mk(Author, {
 
 
 function Book() {
-    Avers.initializeProperties(this);
 }
 
 var jsonBook = {
@@ -40,7 +38,6 @@ Avers.defineCollection(Book, 'tags', String);
 
 
 function Magazine() {
-    Avers.initializeProperties(this);
 }
 
 var jsonMagazine = {
@@ -53,7 +50,6 @@ Avers.definePrimitive(Magazine, 'publisher');
 
 
 function Item() {
-    Avers.initializeProperties(this);
 }
 
 var jsonItem = {
@@ -66,7 +62,6 @@ Avers.defineVariant(Item, 'content', 'type', { book: Book, magazine: Magazine },
 
 
 function NullableTest() {
-    Avers.initializeProperties(this);
 }
 
 Avers.defineObject(NullableTest, 'obj');
@@ -74,7 +69,6 @@ Avers.defineVariant(NullableTest, 'variant', 'type', { book: Book, magazine: Mag
 
 
 function Library() {
-    Avers.initializeProperties(this);
 }
 
 Avers.defineCollection(Library, 'items', Item);

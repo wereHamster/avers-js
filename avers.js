@@ -58,6 +58,9 @@
     // the callbacks are attached to. This means when the object is no longer
     // referenced (and the GC disposes it), the callbacks attached to the
     // object are also disposed.
+    //
+    // FIXME: Use Symbol and attach the callbacks directly to the object, just
+    // like we do with avers properties (see `aversPropertiesSymbol`).
     var objectEventsRegistry = new WeakMap();
     var objectListenersRegistry = new WeakMap();
 
@@ -233,8 +236,15 @@
     }
 
     Avers.initializeProperties = function(x) {
+        // FIXME: Do not pollute the prototype with our internal functions.
+        // If your code relies on those functions, we should expose those
+        // through the Avers module.
         extend(Object.getPrototypeOf(x), Events);
 
+        // FIXME: This 'unobserve' here is probably not needed, but we use it
+        // to make sure only a single 'modelChangesCallback' is attached to
+        // the instance.
+        Object.unobserve(x, modelChangesCallback);
         Object.observe(x, modelChangesCallback);
     }
 
@@ -382,11 +392,17 @@
         Object.deliverChangeRecords(collectionChangeCallback);
     }
 
+    function createObject(x) {
+        var obj = new x();
+        Avers.initializeProperties(obj);
+        return obj;
+    }
+
     Avers.parseJSON = function(x, json) {
         if (x === String || x === Number) {
             return new x(json).valueOf();
         } else {
-            return withId(json, Avers.updateObject(new x(), json));
+            return withId(json, Avers.updateObject(createObject(x), json));
         }
     }
 
