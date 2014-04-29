@@ -1,0 +1,275 @@
+<html>
+<head>
+    <title>Avers.js Documentation</title>
+    <link rel="stylesheet" href="./docs.css" />
+
+    <link href='//fonts.googleapis.com/css?family=Droid+Sans+Mono|Open+Sans|Montserrat' rel='stylesheet' type='text/css'>
+
+    <script type="text/javascript" src="//use.typekit.net/fce5qlg.js"></script>
+    <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
+</head>
+<body>
+    <section>
+        <h1>Defining object types and their properties</h1>
+        <div class="content">
+            <p>
+                An Avers object is a plain JavaScript class which is observable by Avers.
+                The only thing you have to do to make your class an Avers object is to
+                define the desired properties.
+            <p>
+            <p>
+                The constructor should not take any arguments. You can do basic
+                initialization like setting non-Avers properties, but should not
+                do anything more in the constructor.
+            </p>
+            <div class="note">
+                Currently Avers objects must be JavaScript classes. In the future we'll also
+                make it possible to use POJOs.
+            </div>
+            <div class="code">function User() {}
+
+Avers.definePrimitive(User, 'name', 'John Doe');
+Avers.defineObject(User, 'address', Address);</div>
+        </div>
+    </section>
+
+    <section>
+        <h1>Property types</h1>
+
+        <div class="content">
+            <p>
+                There are four principal types of properties which can be registered:
+            <p>
+
+            <ul>
+                <li><b>Primitive:</b> Can be changed only as a whole. Usually used for Number or String properties.</li>
+                <li><b>Object:</b> Embedded objects whose changes are tracked recursively.</li>
+                <li><b>Collection:</b> Lists of objects.</li>
+                <li><b>Variant:</b> A property which can have multiple types (sometimes also called sum type).</li>
+            </ul>
+
+            <p>
+                You can define the properties with one of the <code>define*</code> functions.
+            </p>
+        </div>
+    </section>
+
+    <section>
+        <h1>Creating objects</h1>
+        <div class="content">
+            <p>
+                To create objects, you should use the functions provided by Avers. It is not recommended
+                to create instances manually using the JavaScript new operator.
+            </p>
+            <p>
+                The functions take the constructor and a JSON object describing the properties
+                as arguments, and return a new instance of the type.
+            <p>
+            <div class="code">var user1 = Avers.parseJSON(User, {});
+var user2 = Avers.mk(User, {})</div>
+        </div>
+    </section>
+
+    <section>
+        <h1>Serializing objects to JSON</h1>
+        <div class="content">
+            <p>
+                Because Avers knows about all the properties, it can automatically
+                serialize objects to JSON. The <code>toJSON</code> function is a complement
+                to <code>parseJSON</code>.
+            </p>
+            <div class="code">var json = Avers.toJSON(user);</div>
+        </div>
+    </section>
+
+    <section>
+        <h1>Listening to changes</h1>
+        <div class="content">
+            <p>
+                Whenever one of the defined properties is set to a new value, Avers will generate a change
+                event and propagate it to the root. You can set up callbacks and listen for these changes.
+            </p>
+            <p>
+                The callback is called with two arguments: the path at which the change happened and a description
+                of the change.
+            </p>
+            <p>
+                The change operation is a JSON description of what was changed at that path. In the future
+                Avers will be able to undo individual operations.
+            </p>
+            <div class="code">var user = Avers.mk(User, {});
+
+user.on('change', function(path, op) {
+    console.log('Change at path:', path);
+});
+
+user.name = 'Fry';
+
+// A message should show up in the log:
+//    Change at path: name</div>
+            <div class="note">
+                In the near future, Avers will stop polluting the class prototype with its
+                own functions. Then you'll have to use <code>Avers.on(obj, 'change', function(){})</code>
+                to listen to changes.
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h1>Incremental updates to objects</h1>
+        <div class="content">
+            <p>
+                Once you have a change operation, you can apply it to another object. Use <code>applyOperation</code>
+                to do that.
+            </p>
+            <p>
+                The changes
+            </p>
+            <div class="code">var user1 = Avers.mk(User, {})
+  , user2 = Avers.mk(User, {});
+
+user1.on('change', function(path, op) {
+    Avers.applyOperation(user2, path, op);
+});
+
+user1.name = 'Fry';
+
+// You need to flush the changes so that the callback is invoked.
+Avers.deliverChangeRecords();
+assert(user1.name === user2.name);</div>
+        </div>
+    </section>
+
+    <h1>API</h1>
+    <h2>Defining properties</h2>
+    <section class="function">
+        <header class="signature">
+            definePrimitive&lt;T&gt;(obj :: any, name :: string, default :: T) :: ()
+        </header>
+        <div class="content">
+            <p>
+                This function registers a new primitive property on the given object.
+            </p>
+            <div class="code">Avers.definePrimitive(User, 'name', 'John Doe');</div>
+        </div>
+    </section>
+
+    <section class="function">
+        <header class="signature">
+            defineObject&lt;T&gt;(obj :: any, name :: string, ctor :: new&lt;T&gt;(), default :: T) :: ()
+        </header>
+        <div class="content">
+        <p>
+            Define a object property. <code>ctor</code> is the constructor. The default value is optional.
+            If not provided, the property will not be initialized during migration.
+        </p>
+        <div class="code">Avers.defineObject(Book, 'author', Author);</div>
+        </div>
+    </section>
+
+    <section class="function">
+        <header class="signature">
+            defineCollection&lt;T&gt;(obj :: any, name :: string, ctor :: new&lt;T&gt;()) :: ()
+        </header>
+        <div class="content">
+        <p>
+            Define a collection property. In addition to your own types, you can also use
+            <code>String</code> and <code>Number</code> as constructor.
+        </p>
+        <div class="code">Avers.defineCollection(Book, 'tags', String);</div>
+        </div>
+    </section>
+
+    <section class="function">
+        <header class="signature">
+            defineVariant&lt;T&gt;(obj :: any, name :: string, typeField :: string, typeMap :: { string => new&lt;T&gt;() }, default :: T) :: ()
+        </header>
+        <div class="content">
+        <p>
+            A variant (sum type) field can hold objects of multiple types. The type is a string,
+            stored in the <code>typeField</code> property on the object.
+        </p>
+        <p>
+            The <code>typeMap</code> defines how types are mapped to constructors. When serializing
+            to JSON, Avers will automatically set the type field according to the property type.
+        </p>
+        <div class="code">var typeMap = { book: Book, magazine: Magazine };
+Avers.defineVariant(Item, 'content', 'type', typeMap);</div>
+        </div>
+    </section>
+
+    <h2>Creating new objects</h2>
+    <section class="function">
+        <header class="signature">
+            parseJSON&lt;T&gt;(ctor :: new&lt;T&gt;(), json: any) :: T
+        </header>
+        <div class="content">
+        <p>
+            Creates a new instance of the given class and initializes properties from the json object. Any
+            properties which are registered with the class, but absent from the json are left undefined.
+        </p>
+        <div class="code">var user = Avers.parseJSON(User, {});</div>
+        </div>
+    </section>
+
+    <section class="function">
+        <header class="signature">
+            mk&lt;T&gt;(ctor :: new&lt;T&gt;(), json: any) :: T
+        </header>
+        <div class="content">
+        <p>
+            <code>mk</code> is a convenience function which combines <code>parseJSON</code> and <code>migrateObject</code>.
+        </p>
+        <div class="code">var user = Avers.mk(User, {});</div>
+        </div>
+    </section>
+
+    <section class="function">
+        <header class="signature">
+            migrateObject(obj :: any) :: ()
+        </header>
+        <div class="content">
+        <p>
+            Initialize properties which are not set to their default value. If a property does not have a default
+            value, it will be left blank.
+        </p>
+        <div class="code">var user = Avers.parseJSON(User, {});
+Avers.migrateObject(user);</div>
+        </div>
+    </section>
+
+    <section class="function">
+        <header class="signature">
+            attachChangeListener(obj :: any, fn: ChangeCallback) :: ()
+        </header>
+        <div class="content">
+        <p>
+            Attach a function which will be called when a property changes.
+            The function will be given two arguments: the path to the property
+            which has changed and the description of the change (Operation).
+        </p>
+        <div class="code">var user = Avers.mk(User, {});
+Avers.attachChangeListener(user, function(path, op) {
+    console.log('Change at', path);
+});</div>
+        </div>
+    </section>
+
+    <section class="function">
+        <header class="signature">
+            detachChangeListener(obj :: any, fn: ChangeCallback) :: ()
+        </header>
+        <div class="content">
+        <p>
+            Detach an change listener from the object. The function must be
+            the same one you used in <code>attachChangeListener</code>.
+        </p>
+        <div class="code">var user = Avers.mk(User, {});
+Avers.attachChangeListener(user, function changeCallback(path, op) {
+    Avers.detachChangeListener(user, changeCallback);
+    console.log('Change at', path);
+});</div>
+        </div>
+    </section>
+</body>
+</html>

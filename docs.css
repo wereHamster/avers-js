@@ -1,0 +1,82 @@
+body {
+    margin: 0;
+
+    font-family: 'Open Sans';
+    font-weight: normal;
+}
+
+h1 {
+    font-family: Montserrat;
+    color: #e31819;
+    margin-left: 1rem;
+}
+h2 {
+    font-family: Montserrat;
+    color: #e31819;
+    margin-left: 1rem;
+}
+
+code {
+    color: hsl(200, 95%, 55%);
+    font-size: 1.2rem;
+}
+
+.signature {
+    font-size: 1.2rem;
+    padding: 0.5rem 1rem;
+    background-color: rgba(0,0,0,0.05);
+    background-color: hsla(267, 48%, 45%, 0.05);
+    border-top: 0.3rem solid hsla(267, 48%, 45%, 0.25);
+}
+
+
+
+section {
+    margin: 3rem 0 4rem;
+}
+
+.code {
+    white-space: pre;
+    font-family: 'Droid Sans Mono';
+    padding: .8rem 1rem 1rem;
+    background-color: hsla(200, 50%, 80%, .3);
+    margin: 2rem 0;
+    font-size: .9rem;
+}
+
+.code:before {
+    content: 'Code';
+    display: block;
+    font-family: Montserrat;
+    text-transform: uppercase;
+    color: hsl(200, 95%, 55%);
+    margin-bottom: .3rem;
+    font-size: .8125rem;
+    font-weight: bold;
+}
+
+section .content {
+    margin: 0 1rem;
+    width: 40rem;
+}
+
+
+
+
+.note {
+    padding: .8rem 1rem 1rem;
+    background-color: hsla(100, 30%, 75%, .3);
+    margin: 2rem 0;
+}
+
+.note:before {
+    content: 'Note';
+    display: block;
+    font-family: Montserrat;
+    text-transform: uppercase;
+    color: hsl(100, 30%, 30%);
+    margin-bottom: .3rem;
+    font-size: .8125rem;
+    font-weight: bold;
+}
+
