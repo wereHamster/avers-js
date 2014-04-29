@@ -660,12 +660,12 @@ module Avers {
 
     export function
     attachChangeListener(obj: any, fn: ChangeCallback): void {
-        on(obj, 'change', fn);
+        on(obj, 'change', fn, null);
     }
 
     export function
     detachChangeListener(obj: any, fn: ChangeCallback): void {
-        off(obj, 'change', fn);
+        off(obj, 'change', fn, null);
     }
 }
 
