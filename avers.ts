@@ -61,57 +61,52 @@ module Avers {
 
 
 
-    function on(name, callback, context) {
-        var objectEvents = objectEventsRegistry.get(this)
+    function on(self, name: string, callback, context): void {
+        var objectEvents = objectEventsRegistry.get(self)
         if (!objectEvents) {
             objectEvents = Object.create(null);
-            objectEventsRegistry.set(this, objectEvents);
+            objectEventsRegistry.set(self, objectEvents);
         }
 
         var events = objectEvents[name] || (objectEvents[name] = []);
-        events.push({callback: callback, context: context, ctx: context || this});
-
-        return this;
+        events.push({callback: callback, context: context, ctx: context || self});
     }
 
-    function off(name, callback, context) {
+    function off(self, name: string, callback, context): void {
         if (!name && !callback && !context) {
-            objectEventsRegistry.set(this, Object.create(null));
-            return this;
-        }
+            objectEventsRegistry.set(self, Object.create(null));
+        } else {
+            var objectEvents = objectEventsRegistry.get(self);
+            if (objectEvents) {
+                var names    = name ? [name] : Object.keys(objectEvents)
+                  , numNames = names.length;
 
-        var objectEvents = objectEventsRegistry.get(this);
-        if (objectEvents) {
-            var names    = name ? [name] : Object.keys(objectEvents)
-              , numNames = names.length;
+                for (var i = 0; i < numNames; i++) {
+                    var n      = names[i]
+                      , events = objectEvents[n];
 
-            for (var i = 0; i < numNames; i++) {
-                var n      = names[i]
-                  , events = objectEvents[n];
+                    if (events) {
+                        var retain = [];
 
-                if (events) {
-                    var retain = [];
-
-                    if (callback || context) {
-                        for (var j = 0, k = events.length; j < k; j++) {
-                            var ev = events[j];
-                            if ((callback && callback !== ev.callback) ||
-                                (context && context !== ev.context)) {
-                                retain.push(ev);
+                        if (callback || context) {
+                            for (var j = 0, k = events.length; j < k; j++) {
+                                var ev = events[j];
+                                if ((callback && callback !== ev.callback) ||
+                                    (context && context !== ev.context)) {
+                                    retain.push(ev);
+                                }
                             }
                         }
-                    }
 
-                    if (!retain.length) {
-                        delete objectEvents[n];
-                    } else {
-                        objectEvents[n] = retain;
+                        if (!retain.length) {
+                            delete objectEvents[n];
+                        } else {
+                            objectEvents[n] = retain;
+                        }
                     }
                 }
             }
         }
-
-        return this;
     }
 
     function trigger(self, name: string, ...args): void {
@@ -137,7 +132,7 @@ module Avers {
         var id = obj._listenerId || (obj._listenerId = uniqueId('l'));
         listeners[id] = obj;
         if (typeof name === 'object') callback = self;
-        obj.on(name, callback, self);
+        on(obj, name, callback, self);
     }
 
     function stopListening(self, obj, name?, callback?): void {
@@ -147,7 +142,7 @@ module Avers {
             if (typeof name === 'object') callback = self;
             if (obj) (listeners = {})[obj._listenerId] = obj;
             for (var id in listeners) {
-                listeners[id].off(name, callback, self);
+                off(listeners[id], name, callback, self);
 
                 if (deleteListener) {
                     delete listeners[id];
@@ -240,11 +235,6 @@ module Avers {
 
     export function
     initializeProperties(x) {
-        // FIXME: Do not pollute the prototype with our internal functions.
-        // If your code relies on those functions, we should expose those
-        // through the Avers module.
-        extend(Object.getPrototypeOf(x), { on: on, off: off });
-
         // FIXME: This 'unobserve' here is probably not needed, but we use it
         // to make sure only a single 'modelChangesCallback' is attached to
         // the instance.
@@ -643,7 +633,6 @@ module Avers {
             splice.apply(collection, args);
         }
 
-        extend(collection, { on: on, off: off });
         (<any>Array).observe(collection, collectionChangeCallback);
 
         return collection;
@@ -671,12 +660,12 @@ module Avers {
 
     export function
     attachChangeListener(obj: any, fn: ChangeCallback): void {
-        on.call(obj, 'change', fn);
+        on(obj, 'change', fn);
     }
 
     export function
     detachChangeListener(obj: any, fn: ChangeCallback): void {
-        off.call(obj, 'change', fn);
+        off(obj, 'change', fn);
     }
 }
 
