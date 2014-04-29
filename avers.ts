@@ -60,109 +60,101 @@ module Avers {
     var objectListenersRegistry = new WeakMap();
 
 
-    var Events = {
 
-        on: function(name, callback, context) {
-            var objectEvents = objectEventsRegistry.get(this)
-            if (!objectEvents) {
-                objectEvents = Object.create(null);
-                objectEventsRegistry.set(this, objectEvents);
-            }
+    function on(name, callback, context) {
+        var objectEvents = objectEventsRegistry.get(this)
+        if (!objectEvents) {
+            objectEvents = Object.create(null);
+            objectEventsRegistry.set(this, objectEvents);
+        }
 
-            var events = objectEvents[name] || (objectEvents[name] = []);
-            events.push({callback: callback, context: context, ctx: context || this});
+        var events = objectEvents[name] || (objectEvents[name] = []);
+        events.push({callback: callback, context: context, ctx: context || this});
 
-            return this;
-        },
+        return this;
+    }
 
-        off: function(name, callback, context) {
-            if (!name && !callback && !context) {
-                objectEventsRegistry.set(this, Object.create(null));
-                return this;
-            }
-
-            var objectEvents = objectEventsRegistry.get(this);
-            if (objectEvents) {
-                var names    = name ? [name] : Object.keys(objectEvents)
-                  , numNames = names.length;
-
-                for (var i = 0; i < numNames; i++) {
-                    var n      = names[i]
-                      , events = objectEvents[n];
-
-                    if (events) {
-                        var retain = [];
-
-                        if (callback || context) {
-                            for (var j = 0, k = events.length; j < k; j++) {
-                                var ev = events[j];
-                                if ((callback && callback !== ev.callback) ||
-                                    (context && context !== ev.context)) {
-                                    retain.push(ev);
-                                }
-                            }
-                        }
-
-                        if (!retain.length) {
-                            delete objectEvents[n];
-                        } else {
-                            objectEvents[n] = retain;
-                        }
-                    }
-                }
-            }
-
-            return this;
-        },
-
-        trigger: function(name, ...args) {
-            var objectEvents = objectEventsRegistry.get(this);
-            if (objectEvents) {
-                var events = objectEvents[name];
-                if (events) {
-                    triggerEvents(events, args);
-                }
-            }
-
-            return this;
-        },
-
-        listenTo: function(obj, name, callback) {
-            var listeners = objectListenersRegistry.get(this);
-            if (!listeners) {
-                // TODO: Make this a Map. But that requires
-                // Map.prototype.forEach or map iterators. Sadly, Chrome
-                // doesn't implement either of those yet.
-                listeners = Object.create(null);
-                objectListenersRegistry.set(this, listeners);
-            }
-
-            var id = obj._listenerId || (obj._listenerId = uniqueId('l'));
-            listeners[id] = obj;
-            if (typeof name === 'object') callback = this;
-            obj.on(name, callback, this);
-
-            return this;
-        },
-
-        stopListening: function(obj, name, callback) {
-            var listeners = objectListenersRegistry.get(this);
-            if (listeners) {
-                var deleteListener = !name && !callback;
-                if (typeof name === 'object') callback = this;
-                if (obj) (listeners = {})[obj._listenerId] = obj;
-                for (var id in listeners) {
-                    listeners[id].off(name, callback, this);
-
-                    if (deleteListener) {
-                        delete listeners[id];
-                    }
-                }
-            }
-
+    function off(name, callback, context) {
+        if (!name && !callback && !context) {
+            objectEventsRegistry.set(this, Object.create(null));
             return this;
         }
-    };
+
+        var objectEvents = objectEventsRegistry.get(this);
+        if (objectEvents) {
+            var names    = name ? [name] : Object.keys(objectEvents)
+              , numNames = names.length;
+
+            for (var i = 0; i < numNames; i++) {
+                var n      = names[i]
+                  , events = objectEvents[n];
+
+                if (events) {
+                    var retain = [];
+
+                    if (callback || context) {
+                        for (var j = 0, k = events.length; j < k; j++) {
+                            var ev = events[j];
+                            if ((callback && callback !== ev.callback) ||
+                                (context && context !== ev.context)) {
+                                retain.push(ev);
+                            }
+                        }
+                    }
+
+                    if (!retain.length) {
+                        delete objectEvents[n];
+                    } else {
+                        objectEvents[n] = retain;
+                    }
+                }
+            }
+        }
+
+        return this;
+    }
+
+    function trigger(self, name: string, ...args): void {
+        var objectEvents = objectEventsRegistry.get(self);
+        if (objectEvents) {
+            var events = objectEvents[name];
+            if (events) {
+                triggerEvents(events, args);
+            }
+        }
+    }
+
+    function listenTo(self, obj, name, callback): void {
+        var listeners = objectListenersRegistry.get(self);
+        if (!listeners) {
+            // TODO: Make this a Map. But that requires
+            // Map.prototype.forEach or map iterators. Sadly, Chrome
+            // doesn't implement either of those yet.
+            listeners = Object.create(null);
+            objectListenersRegistry.set(self, listeners);
+        }
+
+        var id = obj._listenerId || (obj._listenerId = uniqueId('l'));
+        listeners[id] = obj;
+        if (typeof name === 'object') callback = self;
+        obj.on(name, callback, self);
+    }
+
+    function stopListening(self, obj, name?, callback?): void {
+        var listeners = objectListenersRegistry.get(self);
+        if (listeners) {
+            var deleteListener = !name && !callback;
+            if (typeof name === 'object') callback = self;
+            if (obj) (listeners = {})[obj._listenerId] = obj;
+            for (var id in listeners) {
+                listeners[id].off(name, callback, self);
+
+                if (deleteListener) {
+                    delete listeners[id];
+                }
+            }
+        }
+    }
 
 
     // Symbol used as the key for the avers property descriptor object. It is
@@ -251,7 +243,7 @@ module Avers {
         // FIXME: Do not pollute the prototype with our internal functions.
         // If your code relies on those functions, we should expose those
         // through the Avers module.
-        extend(Object.getPrototypeOf(x), Events);
+        extend(Object.getPrototypeOf(x), { on: on, off: off });
 
         // FIXME: This 'unobserve' here is probably not needed, but we use it
         // to make sure only a single 'modelChangesCallback' is attached to
@@ -480,37 +472,37 @@ module Avers {
             }
 
             if (x.type === 'add' || x.type === 'new') {
-                Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
+                trigger(self, 'change', x.name, toObjectOperation(x));
 
                 var value = self[x.name];
                 if (value) {
                     if (isObservableProperty(propertyDescriptor)) {
-                        Events.listenTo.call(self, value, 'change', function(key, operation) {
-                            Events.trigger.call(self, 'change', concatPath(x.name, key), operation);
+                        listenTo(self, value, 'change', function(key, operation) {
+                            trigger(self, 'change', concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'update' || x.type === 'updated') {
-                Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
+                trigger(self, 'change', x.name, toObjectOperation(x));
 
                 if (isObservableProperty(propertyDescriptor)) {
                     if (x.oldValue) {
-                        Events.stopListening.call(self, x.oldValue);
+                        stopListening(self, x.oldValue);
                     }
 
                     var value = self[x.name];
                     if (value) {
-                        Events.stopListening.call(self, value);
-                        Events.listenTo.call(self, value, 'change', function(key, operation) {
-                            Events.trigger.call(self, 'change', concatPath(x.name, key), operation);
+                        stopListening(self, value);
+                        listenTo(self, value, 'change', function(key, operation) {
+                            trigger(self, 'change', concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'delete' || x.type === 'deleted') {
-                Events.trigger.call(self, 'change', x.name, toObjectOperation(x));
+                trigger(self, 'change', x.name, toObjectOperation(x));
 
                 if (isObservableProperty(propertyDescriptor)) {
-                    Events.stopListening.call(self, x.oldValue);
+                    stopListening(self, x.oldValue);
                 }
             }
         });
@@ -572,7 +564,7 @@ module Avers {
     }
 
     export function
-    itemId(collection, item) {
+    itemId<T extends Item>(collection: Collection<T>, item: T): string {
         if (item.id) {
             // ASSERT: collection.idMap[item.id] === item
             return item.id;
@@ -586,14 +578,14 @@ module Avers {
         }
     }
 
-    function collectionChangeCallback(changes: ChangeRecord[]) {
+    function collectionChangeCallback(changes: ChangeRecord[]): void {
         changes.forEach(function(x) {
             var self = x.object;
 
             if (x.type === 'splice') {
                 var insert = self.slice(x.index, x.index + x.addedCount);
 
-                Events.trigger.call(self, 'change', null, {
+                trigger(self, 'change', null, {
                     type:       'splice',
                     object:     x.object,
                     index:      x.index,
@@ -602,7 +594,7 @@ module Avers {
                 });
 
                 x.removed.forEach(function(x) {
-                    Events.stopListening.call(self, x);
+                    stopListening(self, x);
 
                     delete self.idMap[x.id]
                     delete self.localMap[x.id]
@@ -616,9 +608,9 @@ module Avers {
                     }
 
                     if (Object(x) === x) {
-                        Events.listenTo.call(self, x, 'change', function(key, value) {
+                        listenTo(self, x, 'change', function(key, value) {
                             var id = itemId(self, x);
-                            Events.trigger.call(self, 'change', concatPath(id, key), value);
+                            trigger(self, 'change', concatPath(id, key), value);
                         });
                     }
                 });
@@ -626,19 +618,23 @@ module Avers {
         });
     }
 
-    interface Collection<T> extends Array<T> {
+    export interface Item {
+        id : string;
+    }
+
+    export interface Collection<T extends Item> extends Array<T> {
         idMap    : { [id: string]: T };
         localMap : { [id: string]: T };
     }
 
-    function resetCollection<T>(x: Collection<T>): void {
+    function resetCollection<T extends Item>(x: Collection<T>): void {
         x.splice(0, x.length);
 
         x.idMap    = Object.create(null);
         x.localMap = Object.create(null);
     }
 
-    function mkCollection<T>(items: T[]): Collection<T> {
+    function mkCollection<T extends Item>(items: T[]): Collection<T> {
         var collection = <Collection<T>> [];
         resetCollection(collection);
 
@@ -647,7 +643,7 @@ module Avers {
             splice.apply(collection, args);
         }
 
-        extend(collection, Events);
+        extend(collection, { on: on, off: off });
         (<any>Array).observe(collection, collectionChangeCallback);
 
         return collection;
