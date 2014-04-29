@@ -1,20 +1,15 @@
-(function(root) {
-    var Avers
-      , slice = Array.prototype.slice
-      , splice = Array.prototype.splice;
+declare var Symbol;
 
-    if (typeof exports !== 'undefined') {
-        Avers = exports;
-    } else {
-        Avers = root.Avers = {};
-    }
+module Avers {
+
+    var splice = Array.prototype.splice;
 
     var idCounter = 0;
-    function uniqueId(prefix) {
+    function uniqueId(prefix: string): string {
         return prefix + (++idCounter);
     }
 
-    function result(object, property) {
+    function result(object, property: string) {
         if (object != null) {
             var value = object[property];
             if (typeof value === 'function') {
@@ -26,8 +21,8 @@
     }
 
     var hasProp = {}.hasOwnProperty;
-    function extend(obj) {
-        slice.call(arguments, 1).forEach(function(source) {
+    function extend(obj, ...args) {
+        args.forEach(function(source) {
             for (var prop in source) {
                 if (hasProp.call(source, prop)) {
                     obj[prop] = source[prop];
@@ -120,12 +115,11 @@
             return this;
         },
 
-        trigger: function(name) {
+        trigger: function(name, ...args) {
             var objectEvents = objectEventsRegistry.get(this);
             if (objectEvents) {
                 var events = objectEvents[name];
                 if (events) {
-                    var args = slice.call(arguments, 1);
                     triggerEvents(events, args);
                 }
             }
@@ -175,10 +169,24 @@
     // kept private so only the Avers module has access to the descriptors.
     var aversPropertiesSymbol = Symbol('aversProperties');
 
+    interface AversProperties {
+        [name: string]: PropertyDescriptor;
+    }
+
+    enum PropertyType { Primitive, Object, Collection, Variant };
+
+    interface PropertyDescriptor {
+        type       : PropertyType;
+        parser    ?: any;
+
+        typeField ?: any;
+        typeMap   ?: any;
+    }
+
 
     // Return the property descriptors for the given object. Returns undefined
     // if the object has no properties defined on it.
-    function aversProperties(obj) {
+    function aversProperties(obj): AversProperties {
         return obj[aversPropertiesSymbol];
     }
 
@@ -186,7 +194,7 @@
         return extend(obj, json.id === undefined ? {} : { id: json.id });
     }
 
-    function descendInto(obj, key) {
+    function descendInto(obj, key: string) {
         if (Array.isArray(obj)) {
             return obj.idMap[key] || obj.localMap[key];
         } else if (obj === Object(obj) && aversProperties(obj) && aversProperties(obj)[key]) {
@@ -194,7 +202,8 @@
         }
     }
 
-    Avers.resolvePath = function(obj, path) {
+    export function
+    resolvePath<T>(obj, path: string): T {
         if (path === '') {
             return obj;
         } else {
@@ -202,40 +211,43 @@
         }
     }
 
-    Avers.clone = function(x) {
+    export function
+    clone(x: any): any {
         if (Array.isArray(x)) {
-            return mkCollection(x.map(Avers.clone));
+            return mkCollection(x.map(clone));
         } else if (x === Object(x) && aversProperties(x)) {
-            return Avers.parseJSON(x.constructor, Avers.toJSON(x));
+            return parseJSON(x.constructor, toJSON(x));
         } else {
             return x;
         }
     }
 
-    function setValueAtPath(obj, path, value) {
+    function setValueAtPath(obj, path: string, value): void {
         var pathKeys = path.split('.')
           , lastKey  = pathKeys.pop()
-          , obj      = Avers.resolvePath(obj, pathKeys.join('.'));
+          , obj      = resolvePath<any>(obj, pathKeys.join('.'));
 
-        obj[lastKey] = Avers.clone(value);
+        obj[lastKey] = clone(value);
     }
 
-    function applySpliceOperation(obj, path, op) {
-        var obj    = Avers.resolvePath(obj, path)
-          , insert = op.insert.map(function(x) { return withId(x, Avers.clone(x)); })
+    function applySpliceOperation(obj, path: string, op): void {
+        var obj    = resolvePath<any>(obj, path)
+          , insert = op.insert.map(function(x) { return withId(x, clone(x)); })
           , args   = [ op.index, op.remove.length ].concat(insert);
 
         splice.apply(obj, args);
     }
 
-    Avers.applyOperation = function(obj, path, op) {
+    export function
+    applyOperation(obj, path: string, op): void {
         switch (op.type) {
         case 'set'    : return setValueAtPath(obj, path, op.value);
         case 'splice' : return applySpliceOperation(obj, path, op);
         }
     }
 
-    Avers.initializeProperties = function(x) {
+    export function
+    initializeProperties(x) {
         // FIXME: Do not pollute the prototype with our internal functions.
         // If your code relies on those functions, we should expose those
         // through the Avers module.
@@ -244,11 +256,12 @@
         // FIXME: This 'unobserve' here is probably not needed, but we use it
         // to make sure only a single 'modelChangesCallback' is attached to
         // the instance.
-        Object.unobserve(x, modelChangesCallback);
-        Object.observe(x, modelChangesCallback);
+        (<any>Object).unobserve(x, modelChangesCallback);
+        (<any>Object).observe(x, modelChangesCallback);
     }
 
-    function defineProperty(x, name, desc) {
+    function
+    defineProperty(x: any, name: string, desc: PropertyDescriptor): void {
         var proto      = x.prototype
           , aversProps = aversProperties(proto) || Object.create(null);
 
@@ -256,69 +269,76 @@
         proto[aversPropertiesSymbol] = aversProps;
     }
 
-    Avers.definePrimitive = function(x, name, defaultValue) {
-        var desc = { type:   'primitive'
-                   , value:  defaultValue
+    export function
+    definePrimitive<T>(x: any, name: string, defaultValue?: T) {
+        var desc = { type  : PropertyType.Primitive
+                   , value : defaultValue
                    };
 
         defineProperty(x, name, desc);
     }
 
-    Avers.defineObject = function(x, name, klass, def) {
-        var desc = { type:   'object'
-                   , parser: createObjectParser(klass)
+    export function
+    defineObject<T>(x: any, name: string, klass: any, def?: T) {
+        var desc = { type   : PropertyType.Object
+                   , parser : createObjectParser(klass)
+                   , value  : undefined
                    };
 
         if (def) {
             desc.value = function() {
-                return Avers.mk(klass, def);
+                return mk(klass, def);
             };
         }
 
         defineProperty(x, name, desc);
     }
 
-    Avers.defineVariant = function(x, name, typeField, typeMap, def) {
-        var desc = { type:      'variant'
-                   , parser:    createVariantParser(name, typeField, typeMap)
-                   , typeField: typeField
-                   , typeMap:   typeMap
+    export function
+    defineVariant<T>(x: any, name: string, typeField, typeMap, def?: T) {
+        var desc = { type      : PropertyType.Variant
+                   , parser    : createVariantParser(name, typeField, typeMap)
+                   , typeField : typeField
+                   , typeMap   : typeMap
+                   , value     : undefined
                    };
 
         if (def) {
             desc.value = function() {
-                return Avers.clone(def);
+                return clone(def);
             };
         }
 
         defineProperty(x, name, desc);
     }
 
-    Avers.defineCollection = function(x, name, klass) {
-        var desc = { type:   'collection'
-                   , parser: createObjectParser(klass)
+    export function
+    defineCollection(x: any, name: string, klass: any) {
+        var desc = { type   : PropertyType.Collection
+                   , parser : createObjectParser(klass)
                    };
 
         defineProperty(x, name, desc);
     }
 
     function createObjectParser(klass) {
-        return function(json) { return Avers.parseJSON(klass, json) }
+        return function(json) { return parseJSON(klass, json) }
     }
 
-    function createVariantParser(name, typeField, typeMap) {
+    function createVariantParser(name: string, typeField, typeMap) {
         return function(json, parent) {
             var type = parent[typeField] || parent[name][typeField]
-            return Avers.parseJSON(typeMap[type], json);
+            return parseJSON(typeMap[type], json);
         }
     }
 
-    function parseJSON(desc, old, json, parent) {
+    function
+    parseValue(desc: PropertyDescriptor, old, json, parent) {
         switch (desc.type) {
-        case 'collection':
+        case PropertyType.Collection:
             if (json) {
                 if (!old) {
-                    old = mkCollection();
+                    old = mkCollection([]);
                 } else {
                     resetCollection(old);
                 }
@@ -330,36 +350,38 @@
                 return old;
             }
 
-        case 'object':
-        case 'variant':
+        case PropertyType.Object:
+        case PropertyType.Variant:
             if (json) {
                 if (old) {
-                    return withId(json, Avers.updateObject(old, json));
+                    return withId(json, updateObject(old, json));
                 } else {
                     return withId(json, desc.parser(json, parent));
                 }
             }
 
-        case 'primitive':
+        case PropertyType.Primitive:
             return json;
         }
     }
 
-    Avers.updateObject = function(x, json) {
+    export function
+    updateObject(x, json) {
         var aversProps = aversProperties(x);
 
         for (var name in aversProps) {
             var desc = aversProps[name];
 
             if (json[name] != null) {
-                x[name] = parseJSON(desc, x[name], json[name], json);
+                x[name] = parseValue(desc, x[name], json[name], json);
             }
         }
 
         return x;
     }
 
-    Avers.migrateObject = function(x) {
+    export function
+    migrateObject(x) {
         var aversProps = aversProperties(x);
 
         for (var name in aversProps) {
@@ -367,50 +389,53 @@
               , prop = x[name];
 
             if (prop == null) {
-                if (desc.type == 'collection') {
-                    x[name] = mkCollection();
+                if (desc.type == PropertyType.Collection) {
+                    x[name] = mkCollection([]);
                 } else {
                     var value = result(desc, 'value');
                     if (value != prop) {
-                        Avers.migrateObject(value);
+                        migrateObject(value);
                         x[name] = value;
                     }
                 }
-            } else if (desc.type == 'object' || desc.type == 'variant') {
-                Avers.migrateObject(prop);
-            } else if (desc.type == 'collection') {
-                prop.forEach(Avers.migrateObject);
+            } else if (desc.type == PropertyType.Object || desc.type == PropertyType.Variant) {
+                migrateObject(prop);
+            } else if (desc.type == PropertyType.Collection) {
+                prop.forEach(migrateObject);
             }
         }
 
         return x;
     }
 
-    Avers.deliverChangeRecords = function() {
+    export function
+    deliverChangeRecords() {
         // FIXME: The polyfill doens't provide this function.
-        Object.deliverChangeRecords(modelChangesCallback);
-        Object.deliverChangeRecords(collectionChangeCallback);
+        (<any>Object).deliverChangeRecords(modelChangesCallback);
+        (<any>Object).deliverChangeRecords(collectionChangeCallback);
     }
 
     function createObject(x) {
         var obj = new x();
-        Avers.initializeProperties(obj);
+        initializeProperties(obj);
         return obj;
     }
 
-    Avers.parseJSON = function(x, json) {
+    export function
+    parseJSON<T>(x, json): T {
         if (x === String || x === Number) {
             return new x(json).valueOf();
         } else {
-            return withId(json, Avers.updateObject(createObject(x), json));
+            return withId(json, updateObject(createObject(x), json));
         }
     }
 
-    Avers.mk = function(x, json) {
-        return Avers.migrateObject(Avers.parseJSON(x, json));
+    export function
+    mk<T>(x, json): T {
+        return migrateObject(parseJSON(x, json));
     }
 
-    function concatPath(self, child) {
+    function concatPath(self: string, child: string): string {
         if (child !== null) {
             return [self, child].join('.');
         } else {
@@ -430,13 +455,22 @@
 
     // Return true if the property can generate change events and thus the
     // parent should listen to events.
-    function isObservableProperty(propertyDescriptor) {
+    function isObservableProperty(propertyDescriptor: PropertyDescriptor): boolean {
         var type = propertyDescriptor.type;
-        return type === 'object' || type === 'variant' || type === 'collection';
+        return type === PropertyType.Object || type === PropertyType.Variant || type === PropertyType.Collection;
     }
 
+    interface ChangeRecord {
+        type       : string;
+        name       : string;
+        object     : any;
+        oldValue   : any;
+        index      : number;
+        addedCount : number;
+        removed    : any[];
+    }
 
-    function modelChangesCallback(changes) {
+    function modelChangesCallback(changes: ChangeRecord[]): void {
         changes.forEach(function(x) {
             var self = x.object
               , propertyDescriptor = aversProperties(self)[x.name];
@@ -482,7 +516,7 @@
         });
     }
 
-    function typeName(typeMap, klass) {
+    function typeName(typeMap, klass): string {
         for (var type in typeMap) {
             if (typeMap[type] == klass) {
                 return type;
@@ -498,25 +532,25 @@
             var desc = aversProps[name];
 
             switch (desc.type) {
-            case 'primitive':
+            case PropertyType.Primitive:
                 json[name] = x[name];
                 break;
 
-            case 'object':
-                json[name] = x[name] ? Avers.toJSON(x[name]) : null;
+            case PropertyType.Object:
+                json[name] = x[name] ? toJSON(x[name]) : null;
                 break;
 
-            case 'variant':
+            case PropertyType.Variant:
                 var value = x[name];
 
                 if (value) {
-                    json[name]           = Avers.toJSON(value);
+                    json[name]           = toJSON(value);
                     json[desc.typeField] = typeName(desc.typeMap, value.constructor)
                 }
                 break;
 
-            case 'collection':
-                json[name] = Avers.toJSON(x[name]);
+            case PropertyType.Collection:
+                json[name] = toJSON(x[name]);
                 break;
             }
         }
@@ -524,19 +558,21 @@
         return json;
     }
 
-    Avers.toJSON = function(x) {
+    export function
+    toJSON(x) {
         if (x === Object(x) && aversProperties(x)) {
             return objectJSON(x);
         } else if (Array.isArray(x)) {
             return x.map(function(item) {
-                return withId(item, Avers.toJSON(item));
+                return withId(item, toJSON(item));
             });
         } else {
             return x;
         }
     }
 
-    Avers.itemId = function(collection, item) {
+    export function
+    itemId(collection, item) {
         if (item.id) {
             // ASSERT: collection.idMap[item.id] === item
             return item.id;
@@ -550,7 +586,7 @@
         }
     }
 
-    function collectionChangeCallback(changes) {
+    function collectionChangeCallback(changes: ChangeRecord[]) {
         changes.forEach(function(x) {
             var self = x.object;
 
@@ -581,7 +617,7 @@
 
                     if (Object(x) === x) {
                         Events.listenTo.call(self, x, 'change', function(key, value) {
-                            var id = Avers.itemId(self, x);
+                            var id = itemId(self, x);
                             Events.trigger.call(self, 'change', concatPath(id, key), value);
                         });
                     }
@@ -590,24 +626,37 @@
         });
     }
 
-    function resetCollection(x) {
+    interface Collection<T> extends Array<T> {
+        idMap    : { [id: string]: T };
+        localMap : { [id: string]: T };
+    }
+
+    function resetCollection<T>(x: Collection<T>): void {
         x.splice(0, x.length);
 
         x.idMap    = Object.create(null);
         x.localMap = Object.create(null);
     }
 
-    function mkCollection(items) {
-        var collection = [];
+    function mkCollection<T>(items: T[]): Collection<T> {
+        var collection = <Collection<T>> [];
         resetCollection(collection);
 
-        if (items) {
-            splice.apply(collection, [0,0].concat(items));
+        if (items.length > 0) {
+            var args = (<any>[0,0]).concat(items);
+            splice.apply(collection, args);
         }
 
         extend(collection, Events);
-        Array.observe(collection, collectionChangeCallback);
-        return collection;
-    };
+        (<any>Array).observe(collection, collectionChangeCallback);
 
-})(this);
+        return collection;
+    }
+}
+
+declare var exports;
+if (typeof exports !== 'undefined') {
+    exports = Avers;
+} else {
+    this.Avers = Avers;
+}

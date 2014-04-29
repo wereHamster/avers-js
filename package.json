@@ -6,12 +6,8 @@
     "type": "git",
     "url": "git://github.com/wereHamster/avers.git"
   },
-  "component": {
-    "scripts": {
-      "avers": "avers.js"
-    }
-  },
   "devDependencies": {
+    "typescript": "*",
     "mocha": "*",
     "chai": "*",
     "serve": "*"
