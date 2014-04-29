@@ -130,9 +130,9 @@ describe('Change event propagation', function() {
     this.timeout(500);
 
     function expectChangeAtPath(obj, expectedPath, done) {
-        obj.on('change', function changeCallback(path) {
+        Avers.attachChangeListener(obj, function changeCallback(path) {
             if (path === expectedPath) {
-                obj.off('change', changeCallback);
+                Avers.detachChangeListener(obj, changeCallback);
                 done();
             }
         });
@@ -170,7 +170,7 @@ describe('Change event propagation', function() {
         var changeAfter, book = Avers.parseJSON(Book, jsonBook);
         Avers.deliverChangeRecords();
 
-        book.on('change', function() { changeAfter = true; });
+        Avers.attachChangeListener(book, function() { changeAfter = true; });
 
         setTimeout(function() {
             assert.notOk(changeAfter, 'Callback invoked after flushing changes');

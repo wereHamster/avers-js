@@ -648,6 +648,36 @@ module Avers {
 
         return collection;
     }
+
+    export interface Operation {
+        type : string;
+    }
+
+    export interface SetOp<T> extends Operation {
+        path  : string;
+        value : T;
+    }
+
+    export interface SpliceOp<T> extends Operation {
+        path   : string;
+        index  : number;
+        remove : number;
+        insert : T[];
+    }
+
+    export interface ChangeCallback {
+        (op: Operation): void;
+    }
+
+    export function
+    attachChangeListener(obj: any, fn: ChangeCallback): void {
+        on.call(obj, 'change', fn);
+    }
+
+    export function
+    detachChangeListener(obj: any, fn: ChangeCallback): void {
+        off.call(obj, 'change', fn);
+    }
 }
 
 declare var exports;

@@ -238,5 +238,38 @@ Avers.migrateObject(user);</div>
         </div>
     </section>
 
+    <section class="function">
+        <header class="signature">
+            attachChangeListener(obj :: any, fn: ChangeCallback) :: ()
+        </header>
+        <div class="content">
+        <p>
+            Attach a function which will be called when a property changes.
+            The function will be given two arguments: the path to the property
+            which has changed and the description of the change (Operation).
+        </p>
+        <div class="code">var user = Avers.mk(User, {});
+Avers.attachChangeListener(user, function(path, op) {
+    console.log('Change at', path);
+});</div>
+        </div>
+    </section>
+
+    <section class="function">
+        <header class="signature">
+            detachChangeListener(obj :: any, fn: ChangeCallback) :: ()
+        </header>
+        <div class="content">
+        <p>
+            Detach an change listener from the object. The function must be
+            the same one you used in <code>attachChangeListener</code>.
+        </p>
+        <div class="code">var user = Avers.mk(User, {});
+Avers.attachChangeListener(user, function changeCallback(path, op) {
+    Avers.detachChangeListener(user, changeCallback);
+    console.log('Change at', path);
+});</div>
+        </div>
+    </section>
 </body>
 </html>
