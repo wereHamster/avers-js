@@ -7,9 +7,9 @@ Open the developer console and play around with the <i>library</i> object. Examp
 
 <code><pre>
 library.location = 'Berlin, Germany';
-library.books.push(mkBook(''));
+library.books.push(Avers.mk(Book, { title: 'A Tale of Two Cities' });
 library.books[0].title = 'Le Petit Prince';
-library.on('change', function(path, value) { console.log(path, value); });
+Avers.attachChangeListener(library, function(path, value) { console.log(path, value); });
 Avers.toJSON(library);
 </pre></code>
 

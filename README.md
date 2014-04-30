@@ -41,21 +41,18 @@ Open the developer console and play around with the `library` object.
 Documentation
 -------------
 
-You can make any of your existing classes an *Avers* class, simply by doing
-these two things:
+You can make any of your existing classes an *Avers* class, simply by defining
+properties using one of the `Avers.define*` functions.
 
- - Define properties on your class.
- - And call `Avers.initializeProperties(this)` in the constructor.
-
-There are three types of properties:
+There are four types of properties:
 
  - Primitive values (string, number, boolean).
+ - Variant properties (also sometimes called sum type).
  - Child objects (Avers classes).
  - Collections (arrays of Avers classes).
 
 ```javascript
     function Author() {
-        Avers.initializeProperties(this);
     }
 
     Avers.definePrimitive(Author, 'firstName');
@@ -63,29 +60,19 @@ There are three types of properties:
 
 
     function Book() {
-        Avers.initializeProperties(this);
     }
 
     Avers.definePrimitive(Book, 'title');
     Avers.defineObject(Book, 'author', Author);
-
-    function mkBook(title) {
-        var book = new Book();
-
-        book.title  = 'A Tale of Two Cities';
-        book.author = new Author();
-
-        return book;
-    }
 ```
 
 Change events bubble up to the root. The event carries the 'path' to the
 changed object as well as the new value:
 
 ```javascript
-    var book = mkBook('A Tale of Two Cities');
-    book.on('change', function(path, value) {
-        console.log("The value at path " + path + " has changed, its new value is: " + value)
+    var book = Avers.mk(Book, { title: 'A Tale of Two Cities' });
+    Avers.attachChangeListener(book, function(path, op) {
+        console.log("The value at path " + path + " has changed, its new value is: " + op.value)
     });
 
     book.author.firstName = 'Charles';
@@ -110,12 +97,11 @@ collection. But you must not assign an array to that property.
 
 ```javascript
     function Library() {
-        Avers.initializeProperties(this);
     }
 
     Avers.defineCollection(Library, 'books', Book);
 
-    var library = new Library;
+    var library = Avers.mk(Library, {});
 ```
 
 Models within a collection are given a unique key which stays stable even when
@@ -133,7 +119,7 @@ Avers can automatically generate and parse JSON for you. Or if you have an
 existing object, you can easily update it.
 
 ```javascript
-    book = Avers.fromJSON(Book, {
+    book = Avers.parseJSON(Book, {
         title: '',
         author: { firstName: '', lastName: '' }
     });

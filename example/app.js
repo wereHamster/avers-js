@@ -1,44 +1,22 @@
-function Author() {
-    Avers.initializeProperties(this);
-}
-
+function Author() {}
 Avers.definePrimitive(Author, 'firstName');
 Avers.definePrimitive(Author, 'lastName');
 
 
-function Book() {
-    Avers.initializeProperties(this);
-}
-
+function Book() {}
 Avers.definePrimitive(Book, 'title');
-Avers.defineObject(Book, 'author', {
-    parser: Avers.createParser(Author)
-});
+Avers.defineObject(Book, 'author', Author);
 
-function mkBook(title) {
-    var book = new Book();
-
-    book.title  = 'A Tale of Two Cities';
-    book.author = new Author();
-
-    return book;
-}
-
-function Library() {
-    Avers.initializeProperties(this);
-}
-
+function Library() {}
 Avers.definePrimitive(Library, 'location');
-Avers.defineCollection(Library, 'books', {
-    parser: Avers.createParser(Book)
-});
+Avers.defineCollection(Library, 'books', Book);
 
-library = new Library();
+library = Avers.mk(Library, {});
 
 var changes = document.querySelector('#changes');
-library.on('change', function(path, op) {
+Avers.attachChangeListener(library, function(path, op) {
     var li = document.createElement('li');
-    li.innerText = path + ' changed to ' + JSON.stringify(Avers.toJSON(op.value));
+    li.innerText = path + ' changed ' + JSON.stringify(op);
     changes.appendChild(li);
 });
 
