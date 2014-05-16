@@ -49,105 +49,70 @@ module Avers {
     };
 
 
-    // A WeakMap which holds event callbacks. The key is the object to which
-    // the callbacks are attached to. This means when the object is no longer
-    // referenced (and the GC disposes it), the callbacks attached to the
-    // object are also disposed.
+    // ChangeListener
+    // -----------------------------------------------------------------------
     //
-    // FIXME: Use Symbol and attach the callbacks directly to the object, just
-    // like we do with avers properties (see `aversPropertiesSymbol`).
-    var objectEventsRegistry = new WeakMap();
-    var objectListenersRegistry = new WeakMap();
+    // Change listeners are callbacks attached to objects. They are called
+    // when the object changes, and propagate changes upwards, to their
+    // parents up to the root.
 
-
-
-    function on(self, name: string, callback, context): void {
-        var objectEvents = objectEventsRegistry.get(self)
-        if (!objectEvents) {
-            objectEvents = Object.create(null);
-            objectEventsRegistry.set(self, objectEvents);
-        }
-
-        var events = objectEvents[name] || (objectEvents[name] = []);
-        events.push({callback: callback, context: context, ctx: context || self});
+    interface ChangeListener {
+        callback : ChangeCallback;
+        context  : any;
     }
 
-    function off(self, name: string, callback, context): void {
-        if (!name && !callback && !context) {
-            objectEventsRegistry.set(self, Object.create(null));
-        } else {
-            var objectEvents = objectEventsRegistry.get(self);
-            if (objectEvents) {
-                var names    = name ? [name] : Object.keys(objectEvents)
-                  , numNames = names.length;
 
-                for (var i = 0; i < numNames; i++) {
-                    var n      = names[i]
-                      , events = objectEvents[n];
+    // changeListenersSymbol
+    // -----------------------------------------------------------------------
+    //
+    // The symbol under which the change listeners are attached to an object.
 
-                    if (events) {
-                        var retain = [];
+    var changeListenersSymbol = Symbol('aversChangeListeners');
 
-                        if (callback || context) {
-                            for (var j = 0, k = events.length; j < k; j++) {
-                                var ev = events[j];
-                                if ((callback && callback !== ev.callback) ||
-                                    (context && context !== ev.context)) {
-                                    retain.push(ev);
-                                }
-                            }
-                        }
 
-                        if (!retain.length) {
-                            delete objectEvents[n];
-                        } else {
-                            objectEvents[n] = retain;
-                        }
-                    }
-                }
-            }
+    // childListenersSymbol
+    // -----------------------------------------------------------------------
+
+    var childListenersSymbol = Symbol('aversChildListeners');
+
+
+    // -----------------------------------------------------------------------
+    // Each Avers object is given a unique id. This is the symbol under which
+    // the Id is attached to the object.
+    //
+    // This Id is different from the 'id' property which is required on
+    // collection items.
+    var objectIdSymbol = Symbol('aversObjectId');
+
+
+    function trigger(self, path: string, op: any): void {
+        var listeners = self[changeListenersSymbol];
+        if (listeners) {
+            triggerEvents(listeners, [path, op]);
         }
     }
 
-    function trigger(self, name: string, ...args): void {
-        var objectEvents = objectEventsRegistry.get(self);
-        if (objectEvents) {
-            var events = objectEvents[name];
-            if (events) {
-                triggerEvents(events, args);
-            }
-        }
-    }
-
-    function listenTo(self, obj, name, callback): void {
-        var listeners = objectListenersRegistry.get(self);
+    function listenTo(self, obj, callback: ChangeCallback): void {
+        var listeners = self[childListenersSymbol];
         if (!listeners) {
             // TODO: Make this a Map. But that requires
             // Map.prototype.forEach or map iterators. Sadly, Chrome
             // doesn't implement either of those yet.
             listeners = Object.create(null);
-            objectListenersRegistry.set(self, listeners);
+            self[childListenersSymbol] = listeners;
         }
 
-        var id = obj._listenerId || (obj._listenerId = uniqueId('l'));
+        var id = obj[objectIdSymbol] || (obj[objectIdSymbol] = uniqueId('l'));
         listeners[id] = obj;
-        if (typeof name === 'object') callback = self;
-        on(obj, name, callback, self);
+
+        _attachChangeListener(obj, callback, self);
     }
 
-    function stopListening(self, obj, name?, callback?): void {
-        var listeners = objectListenersRegistry.get(self);
+    function stopListening(self, obj): void {
+        var listeners = self[childListenersSymbol];
         if (listeners) {
-            var deleteListener = !name && !callback;
-            if (typeof name === 'object') callback = self;
-            if (obj) (listeners = {})[obj._listenerId] = obj;
-            for (var id in listeners) {
-                off(listeners[id], name, callback, self);
-
-                if (deleteListener) {
-                    delete listeners[id];
-                }
-            }
+            detachChangeListeners(obj, x => { return x.context === self; });
+            delete listeners[obj[objectIdSymbol]];
         }
     }
 
@@ -426,12 +391,13 @@ module Avers {
     }
 
     function toObjectOperation(x) {
-        return {
-            type:     'set',
-            object:   x.object,
-            value:    x.object[x.name],
-            oldValue: x.oldValue,
-        };
+        var object = x.object;
+
+        return { type     : 'set'
+               , object   : object
+               , value    : object[x.name]
+               , oldValue : x.oldValue
+               };
     }
 
 
@@ -462,18 +428,18 @@ module Avers {
             }
 
             if (x.type === 'add' || x.type === 'new') {
-                trigger(self, 'change', x.name, toObjectOperation(x));
+                trigger(self, x.name, toObjectOperation(x));
 
                 var value = self[x.name];
                 if (value) {
                     if (isObservableProperty(propertyDescriptor)) {
-                        listenTo(self, value, 'change', function(key, operation) {
-                            trigger(self, 'change', concatPath(x.name, key), operation);
+                        listenTo(self, value, function(key, operation) {
+                            trigger(self, concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'update' || x.type === 'updated') {
-                trigger(self, 'change', x.name, toObjectOperation(x));
+                trigger(self, x.name, toObjectOperation(x));
 
                 if (isObservableProperty(propertyDescriptor)) {
                     if (x.oldValue) {
@@ -483,13 +449,13 @@ module Avers {
                     var value = self[x.name];
                     if (value) {
                         stopListening(self, value);
-                        listenTo(self, value, 'change', function(key, operation) {
-                            trigger(self, 'change', concatPath(x.name, key), operation);
+                        listenTo(self, value, function(key, operation) {
+                            trigger(self, concatPath(x.name, key), operation);
                         });
                     }
                 }
             } else if (x.type === 'delete' || x.type === 'deleted') {
-                trigger(self, 'change', x.name, toObjectOperation(x));
+                trigger(self, x.name, toObjectOperation(x));
 
                 if (isObservableProperty(propertyDescriptor)) {
                     stopListening(self, x.oldValue);
@@ -575,7 +541,7 @@ module Avers {
             if (x.type === 'splice') {
                 var insert = self.slice(x.index, x.index + x.addedCount);
 
-                trigger(self, 'change', null, {
+                trigger(self, null, {
                     type:       'splice',
                     object:     x.object,
                     index:      x.index,
@@ -598,9 +564,9 @@ module Avers {
                     }
 
                     if (Object(x) === x) {
-                        listenTo(self, x, 'change', function(key, value) {
+                        listenTo(self, x, function(key, value) {
                             var id = itemId(self, x);
-                            trigger(self, 'change', concatPath(id, key), value);
+                            trigger(self, concatPath(id, key), value);
                         });
                     }
                 });
@@ -655,17 +621,58 @@ module Avers {
     }
 
     export interface ChangeCallback {
-        (op: Operation): void;
+        (path: string, op: Operation): void;
     }
+
+    function
+    _attachChangeListener(obj, fn: ChangeCallback, context): void {
+        var listeners = obj[changeListenersSymbol] || [];
+        obj[changeListenersSymbol] = listeners;
+
+        listeners.push({ callback: fn, context: context });
+    }
+
+
+    // attachChangeListener
+    // -----------------------------------------------------------------------
+    //
+    // Attach a change callback to the object. It will be called each time the
+    // object or any of its properties change.
 
     export function
     attachChangeListener(obj: any, fn: ChangeCallback): void {
-        on(obj, 'change', fn, null);
+        _attachChangeListener(obj, fn, null);
     }
+
+
+    // detachChangeListeners
+    // -----------------------------------------------------------------------
+    //
+    // Detach all change listeners from the given object for which
+    // the predicate function returns true.
+    //
+    // This function is private, but if needed it can be exported. However,
+    // without a corresponding attachChangeListener which allows you to set
+    // the context, it is of little use.
+
+    function
+    detachChangeListeners(obj, predicate: (x: ChangeListener) => boolean): void {
+        var listeners = self[changeListenersSymbol];
+        if (listeners) {
+            self[changeListenersSymbol] = listeners.filter(predicate);
+        }
+    }
+
+
+    // detachChangeListener
+    // -----------------------------------------------------------------------
+    //
+    // Detach all change listeners which match the given change callback. This
+    // function is the counterpart to 'attachChangeListener'.
 
     export function
     detachChangeListener(obj: any, fn: ChangeCallback): void {
-        off(obj, 'change', fn, null);
+        detachChangeListeners(obj, x => { return x.callback === fn });
     }
 }
 
