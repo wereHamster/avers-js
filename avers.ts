@@ -616,7 +616,7 @@ module Avers {
     export interface SpliceOp<T> extends Operation {
         path   : string;
         index  : number;
-        remove : number;
+        remove : T[];
         insert : T[];
     }
 
