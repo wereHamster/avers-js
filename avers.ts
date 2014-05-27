@@ -464,7 +464,8 @@ module Avers {
         });
     }
 
-    function typeName(typeMap, klass): string {
+    export function
+    typeName(typeMap, klass): string {
         for (var type in typeMap) {
             if (typeMap[type] == klass) {
                 return type;
