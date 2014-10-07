@@ -305,3 +305,19 @@ describe('Avers.mk', function() {
         assert.equal('John', author.firstName);
     });
 });
+
+
+describe('Avers.lookupItem', function() {
+    it('should find the item in the collection', function() {
+        var library = Avers.mk(Library, {});
+        library.items.push(Avers.mk(Book, jsonBookWithId));
+        Avers.deliverChangeRecords(library);
+        assert(!!Avers.lookupItem(library.items, jsonBookWithId.id));
+    });
+    it('should find the item in the collection', function() {
+        var library = Avers.mk(Library, {});
+        library.items.push(Avers.mk(Book, jsonBookWithId));
+        Avers.deliverChangeRecords(library);
+        assert.isUndefined(Avers.lookupItem(library.items, 'non-existing-id'));
+    });
+});

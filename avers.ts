@@ -605,6 +605,19 @@ module Avers {
         return collection;
     }
 
+
+    // lookupItem
+    // -----------------------------------------------------------------------
+    //
+    // Return the item in the collection which has the given id. May return
+    // undefined if no such item exists.
+
+    export function
+    lookupItem<T extends Item>(collection: Collection<T>, id: string): T {
+        return collection.idMap[id];
+    }
+
+
     export interface Operation {
         type : string;
     }
