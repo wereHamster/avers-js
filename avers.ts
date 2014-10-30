@@ -201,10 +201,10 @@ module Avers {
     export function
     initializeProperties(x) {
         // FIXME: This 'unobserve' here is probably not needed, but we use it
-        // to make sure only a single 'modelChangesCallback' is attached to
+        // to make sure only a single 'objectChangesCallback' is attached to
         // the instance.
-        (<any>Object).unobserve(x, modelChangesCallback);
-        (<any>Object).observe(x, modelChangesCallback);
+        (<any>Object).unobserve(x, objectChangesCallback);
+        (<any>Object).observe(x, objectChangesCallback);
     }
 
     function
@@ -358,8 +358,8 @@ module Avers {
     export function
     deliverChangeRecords() {
         // FIXME: The polyfill doens't provide this function.
-        (<any>Object).deliverChangeRecords(modelChangesCallback);
-        (<any>Object).deliverChangeRecords(collectionChangeCallback);
+        (<any>Object).deliverChangeRecords(objectChangesCallback);
+        (<any>Object).deliverChangeRecords(collectionChangesCallback);
     }
 
     function createObject(x) {
@@ -418,7 +418,7 @@ module Avers {
         removed    : any[];
     }
 
-    function modelChangesCallback(changes: ChangeRecord[]): void {
+    function objectChangesCallback(changes: ChangeRecord[]): void {
         changes.forEach(function(x) {
             var self = x.object
               , propertyDescriptor = aversProperties(self)[x.name];
@@ -535,7 +535,7 @@ module Avers {
         }
     }
 
-    function collectionChangeCallback(changes: ChangeRecord[]): void {
+    function collectionChangesCallback(changes: ChangeRecord[]): void {
         changes.forEach(function(x) {
             var self = x.object;
 
@@ -600,7 +600,7 @@ module Avers {
             splice.apply(collection, args);
         }
 
-        (<any>Array).observe(collection, collectionChangeCallback);
+        (<any>Array).observe(collection, collectionChangesCallback);
 
         return collection;
     }
