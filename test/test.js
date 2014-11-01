@@ -130,11 +130,13 @@ describe('Change event propagation', function() {
     this.timeout(500);
 
     function expectChangeAtPath(obj, expectedPath, done) {
-        Avers.attachChangeListener(obj, function changeCallback(path) {
-            if (path === expectedPath) {
-                Avers.detachChangeListener(obj, changeCallback);
-                done();
-            }
+        Avers.attachChangeListener(obj, function changeCallback(changes) {
+            changes.forEach(function(change) {
+                if (change.path === expectedPath) {
+                    Avers.detachChangeListener(obj, changeCallback);
+                    done();
+                }
+            });
         });
     }
 

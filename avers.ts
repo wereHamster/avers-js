@@ -85,10 +85,10 @@ module Avers {
     var objectIdSymbol = Symbol('aversObjectId');
 
 
-    function trigger(self, path: string, op: any): void {
+    function trigger(self, changes: Change<any>[]): void {
         var listeners = self[changeListenersSymbol];
         if (listeners) {
-            triggerEvents(listeners, [path, op]);
+            triggerEvents(listeners, [changes]);
         }
     }
 
@@ -174,27 +174,48 @@ module Avers {
         }
     }
 
-    function setValueAtPath(obj, path: string, value): void {
+    function setValueAtPath(root, path: string, value): void {
         var pathKeys = path.split('.')
           , lastKey  = pathKeys.pop()
-          , obj      = resolvePath<any>(obj, pathKeys.join('.'));
+          , obj      = resolvePath<any>(root, pathKeys.join('.'));
 
         obj[lastKey] = clone(value);
     }
 
-    function applySpliceOperation(obj, path: string, op): void {
-        var obj    = resolvePath<any>(obj, path)
-          , insert = op.insert.map(function(x) { return withId(x, clone(x)); })
-          , args   = [ op.index, op.remove.length ].concat(insert);
+    function parentPath(path: string): string {
+        var pathKeys = path.split('.');
+        return pathKeys.slice(0, pathKeys.length - 1).join('.');
+    }
+
+    function last<T>(xs: T[]): T {
+        return xs[xs.length - 1];
+    }
+
+    // Splice operations can currently not be applied to the root. This is
+    // a restriction which may be lifted in the future.
+    function applySpliceOperation(root, path: string, op: Operation): void {
+        var obj    = resolvePath<any>(root, path)
+          , parent = resolvePath<any>(root, parentPath(path))
+          , prop   = aversProperties(parent)[last(path.split('.'))]
+          , insert = op.insert.map(json => { return prop.parser(json); })
+          , args   = [ op.index, op.remove ].concat(insert);
 
         splice.apply(obj, args);
     }
 
+
+    // applyOperation
+    // -----------------------------------------------------------------------
+    //
+    // Apply an operation to a root object. The operation can come from
+    // a local change (be sure to convert the change to an 'Operation' first)
+    // or loaded from the server.
+
     export function
-    applyOperation(obj, path: string, op): void {
+    applyOperation(root, path: string, op: Operation): void {
         switch (op.type) {
-        case 'set'    : return setValueAtPath(obj, path, op.value);
-        case 'splice' : return applySpliceOperation(obj, path, op);
+        case 'set'    : return setValueAtPath(root, path, op.value);
+        case 'splice' : return applySpliceOperation(root, path, op);
         }
     }
 
@@ -390,14 +411,14 @@ module Avers {
         }
     }
 
-    function toObjectOperation(x) {
+    function toObjectOperation(x: ChangeRecord): Set {
         var object = x.object;
 
-        return { type     : 'set'
-               , object   : object
-               , value    : object[x.name]
-               , oldValue : x.oldValue
-               };
+        return new Set
+            ( object
+            , object[x.name]
+            , x.oldValue
+            );
     }
 
 
@@ -427,19 +448,17 @@ module Avers {
                 return;
             }
 
-            if (x.type === 'add' || x.type === 'new') {
-                trigger(self, x.name, toObjectOperation(x));
+            if (x.type === 'add') {
+                trigger(self, [new Change(x.name, toObjectOperation(x))]);
 
                 var value = self[x.name];
                 if (value) {
                     if (isObservableProperty(propertyDescriptor)) {
-                        listenTo(self, value, function(key, operation) {
-                            trigger(self, concatPath(x.name, key), operation);
-                        });
+                        forwardChanges(self, value, x.name);
                     }
                 }
-            } else if (x.type === 'update' || x.type === 'updated') {
-                trigger(self, x.name, toObjectOperation(x));
+            } else if (x.type === 'update') {
+                trigger(self, [new Change(x.name, toObjectOperation(x))]);
 
                 if (isObservableProperty(propertyDescriptor)) {
                     if (x.oldValue) {
@@ -449,13 +468,11 @@ module Avers {
                     var value = self[x.name];
                     if (value) {
                         stopListening(self, value);
-                        listenTo(self, value, function(key, operation) {
-                            trigger(self, concatPath(x.name, key), operation);
-                        });
+                        forwardChanges(self, value, x.name);
                     }
                 }
-            } else if (x.type === 'delete' || x.type === 'deleted') {
-                trigger(self, x.name, toObjectOperation(x));
+            } else if (x.type === 'delete') {
+                trigger(self, [new Change(x.name, toObjectOperation(x))]);
 
                 if (isObservableProperty(propertyDescriptor)) {
                     stopListening(self, x.oldValue);
@@ -542,13 +559,13 @@ module Avers {
             if (x.type === 'splice') {
                 var insert = self.slice(x.index, x.index + x.addedCount);
 
-                trigger(self, null, {
-                    type:       'splice',
-                    object:     x.object,
-                    index:      x.index,
-                    remove:     x.removed,
-                    insert:     insert,
-                });
+                trigger(self, [new Change(null, new Splice
+                    ( x.object
+                    , x.index
+                    , x.removed
+                    , insert
+                    )
+                )]);
 
                 x.removed.forEach(function(x) {
                     stopListening(self, x);
@@ -565,9 +582,11 @@ module Avers {
                     }
 
                     if (Object(x) === x) {
-                        listenTo(self, x, function(key, value) {
+                        listenTo(self, x, function(changes) {
                             var id = itemId(self, x);
-                            trigger(self, concatPath(id, key), value);
+                            trigger(self, changes.map(change => {
+                                return embedChange(change, id);
+                            }));
                         });
                     }
                 });
@@ -618,24 +637,113 @@ module Avers {
     }
 
 
+    // Operation
+    // -----------------------------------------------------------------------
+    //
+    // Definition of a pure JavaScript object which describes a change at
+    // a particular path. It can be converted directly to JSON.
+
     export interface Operation {
-        type : string;
+        // The path at which the change happened.
+        path    : string;
+
+        // Either 'set' or 'splice'. The remaining fields depend on the value
+        // of this.
+        type    : string;
+
+        // Set
+        value  ?: any;
+
+        // Splice
+        index  ?: number;
+        remove ?: number;
+        insert ?: any[];
     }
 
-    export interface SetOp<T> extends Operation {
-        path  : string;
-        value : T;
+
+
+    // Change
+    // -----------------------------------------------------------------------
+    //
+    // A 'Change' is an description of a 'Set' or 'Splice' change which has
+    // happened at a particular path.
+
+    export class Change<T> {
+        constructor
+          ( public path   : string
+          , public record : T
+          ) {}
     }
 
-    export interface SpliceOp<T> extends Operation {
-        path   : string;
-        index  : number;
-        remove : T[];
-        insert : T[];
+
+    export class Set {
+        constructor
+          ( public object   : any
+          , public value    : any
+          , public oldValue : any
+          ) {}
+    }
+
+    export class Splice {
+        constructor
+          ( public object : any
+          , public index  : number
+          , public remove : any[]
+          , public insert : any[]
+          ) {}
+    }
+
+
+    function embedChange<T>(change: Change<T>, key: string): Change<T> {
+        return new Change
+            ( concatPath(key, change.path)
+            , change.record
+            );
+    }
+
+    function forwardChanges(obj, prop, key: string) {
+        listenTo(obj, prop, changes => {
+            trigger(obj, changes.map(change => {
+                return embedChange(change, key);
+            }));
+        });
+    }
+
+
+    // changeOperation
+    // -----------------------------------------------------------------------
+    //
+    // Convert a 'Change' to an 'Operation' which is a pure JS object and can
+    // be directly converted to JSON and sent over network.
+
+    export function
+    changeOperation(change: Change<any>): Operation {
+        if (change.record instanceof Set) {
+            var set = <Set> change.record;
+
+            return { path   : change.path
+                   , type   : 'set'
+                   , value  : set.value
+                   };
+
+        } else if (change.record instanceof Splice) {
+            var splice = <Splice> change.record;
+
+            return { path   : change.path
+                   , type   : 'splice'
+                   , index  : splice.index
+                   , remove : splice.remove.length
+                   , insert : toJSON(splice.insert)
+                   };
+
+
+        } else {
+            throw new Error("Unknown change record: " + change.record)
+        }
     }
 
     export interface ChangeCallback {
-        (path: string, op: Operation): void;
+        (changes: Change<any>[]): void;
     }
 
     function
