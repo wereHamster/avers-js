@@ -723,7 +723,7 @@ module Avers {
 
             return { path   : change.path
                    , type   : 'set'
-                   , value  : set.value
+                   , value  : toJSON(set.value)
                    };
 
         } else if (change.record instanceof Splice) {
