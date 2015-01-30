@@ -148,6 +148,7 @@ describe('Change event propagation', function() {
                 if (change.path === expectedPath) {
                     Avers.detachChangeListener(obj, changeCallback);
                     done();
+                    done = function(){};
                 }
             });
         });
