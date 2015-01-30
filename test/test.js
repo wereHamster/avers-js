@@ -49,6 +49,10 @@ Avers.definePrimitive(Magazine, 'title');
 Avers.definePrimitive(Magazine, 'publisher');
 
 
+function Diary() {
+}
+
+
 function Item() {
 }
 
@@ -58,7 +62,7 @@ var jsonItem = {
 }
 
 var def = Avers.mk(Book, jsonBook);
-Avers.defineVariant(Item, 'content', 'type', { book: Book, magazine: Magazine }, def);
+Avers.defineVariant(Item, 'content', 'type', { book: Book, magazine: Magazine, diary: Diary }, def);
 
 
 function NullableTest() {
@@ -88,6 +92,11 @@ describe('Avers.parseJSON', function() {
         assert.isUndefined(author.firstName);
         assert.isUndefined(author.lastName);
     })
+
+    it('should instanciate plain classes in variant properties', function() {
+        var item = Avers.parseJSON(Item, { type: 'diary', content: {} });
+        assert.instanceOf(item.content, Diary, 'Item content is not a Diary');
+    })
 })
 
 +describe('Avers.updateObject', function() {
@@ -116,6 +125,10 @@ describe('Avers.toJSON', function() {
     })
     it('should handle variants', function() {
         var json = { type: 'book', content: jsonBook };
+        runTest(Avers.parseJSON(Item, json), json);
+    })
+    it('should handle variant properties with plain constructors', function() {
+        var json = { type: 'diary', content: {} };
         runTest(Avers.parseJSON(Item, json), json);
     })
     it('should handle collections', function() {
