@@ -1,5 +1,3 @@
-declare var Symbol;
-
 module Avers {
 
     var splice = Array.prototype.splice;
@@ -67,13 +65,13 @@ module Avers {
     //
     // The symbol under which the change listeners are attached to an object.
 
-    var changeListenersSymbol = Symbol('aversChangeListeners');
+    var changeListenersSymbol = <any> Symbol('aversChangeListeners');
 
 
     // childListenersSymbol
     // -----------------------------------------------------------------------
 
-    var childListenersSymbol = Symbol('aversChildListeners');
+    var childListenersSymbol = <any> Symbol('aversChildListeners');
 
 
     // -----------------------------------------------------------------------
@@ -82,7 +80,8 @@ module Avers {
     //
     // This Id is different from the 'id' property which is required on
     // collection items.
-    var objectIdSymbol = Symbol('aversObjectId');
+
+    var objectIdSymbol = <any> Symbol('aversObjectId');
 
 
     function trigger(self, changes: Change<any>[]): void {
@@ -119,7 +118,8 @@ module Avers {
 
     // Symbol used as the key for the avers property descriptor object. It is
     // kept private so only the Avers module has access to the descriptors.
-    var aversPropertiesSymbol = Symbol('aversProperties');
+
+    var aversPropertiesSymbol = <any> Symbol('aversProperties');
 
     interface AversProperties {
         [name: string]: PropertyDescriptor;
