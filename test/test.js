@@ -184,9 +184,9 @@ describe('Change event propagation', function() {
 
     it('Avers.deliverChangeRecords should flush all changes', function(done) {
         var changeAfter, book = Avers.parseJSON(Book, jsonBook);
-        Avers.deliverChangeRecords();
+        Avers.deliverChangeRecords(book);
 
-        Avers.attachChangeListener(book, function() { changeAfter = true; });
+        Avers.attachChangeListener(book, function(changes) { changeAfter = true; });
 
         setTimeout(function() {
             assert.notOk(changeAfter, 'Callback invoked after flushing changes');
@@ -212,7 +212,7 @@ describe('Avers.resolvePath', function() {
         var book, library = Avers.mk(Library, {});
 
         library.items.push(book = Avers.parseJSON(Book, jsonBook));
-        Avers.deliverChangeRecords();
+        Avers.deliverChangeRecords(library);
 
         var id   = Avers.itemId(library.items, book);
         var path = 'items.' + id + '.author.firstName';
@@ -250,14 +250,14 @@ describe('Avers.itemId', function() {
         var book, library = Avers.mk(Library, {});
 
         library.items.push(book = Avers.parseJSON(Book, jsonBook));
-        Avers.deliverChangeRecords();
+        Avers.deliverChangeRecords(library);
         assert.match(Avers.itemId(library.items, book), /~.*/);
     });
     it('should return the item id when the item has one set', function() {
         var book, library = Avers.mk(Library, {});
 
         library.items.push(book = Avers.parseJSON(Book, jsonBookWithId));
-        Avers.deliverChangeRecords();
+        Avers.deliverChangeRecords(library);
         assert.equal(Avers.itemId(library.items, book), jsonBookWithId.id);
     });
 });

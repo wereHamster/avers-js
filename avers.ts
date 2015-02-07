@@ -32,6 +32,14 @@ module Avers {
     }
 
 
+    // changeCallbackSymbol
+    // -----------------------------------------------------------------------
+    //
+    // Avers attaches a unique callback to each object or collection and saves
+    // a reference to the callback under this symbol.
+
+    var changeCallbackSymbol = <any> Symbol('aversChangeCallback');
+
 
     // changeListenersSymbol
     // -----------------------------------------------------------------------
@@ -190,11 +198,10 @@ module Avers {
 
     export function
     initializeProperties(x) {
-        // FIXME: This 'unobserve' here is probably not needed, but we use it
-        // to make sure only a single 'objectChangesCallback' is attached to
-        // the instance.
-        (<any>Object).unobserve(x, objectChangesCallback);
-        (<any>Object).observe(x, objectChangesCallback);
+        if (!x[changeCallbackSymbol]) {
+            var fn = x[changeCallbackSymbol] = objectChangesCallback.bind(x);
+            (<any>Object).observe(x, fn);
+        }
     }
 
     function
@@ -347,11 +354,36 @@ module Avers {
         return x;
     }
 
+
+    // deliverChangeRecords
+    // -----------------------------------------------------------------------
+    //
+    // Deliver all outstanding change records for the given object and all its
+    // children, if applicable. See Object.deliverChangeRecords.
+
     export function
-    deliverChangeRecords() {
-        // FIXME: The polyfill doens't provide this function.
-        (<any>Object).deliverChangeRecords(objectChangesCallback);
-        (<any>Object).deliverChangeRecords(collectionChangesCallback);
+    deliverChangeRecords(obj): void {
+        var fn = obj[changeCallbackSymbol];
+        if (fn) {
+            (<any>Object).deliverChangeRecords(fn);
+
+            // Flush changes in children.
+            if (Array.isArray(obj)) {
+                obj.forEach(x => {
+                    deliverChangeRecords(x);
+                });
+
+            } else if (obj === Object(obj)) {
+                var aversProps = aversProperties(obj);
+
+                for (var name in aversProps) {
+                    var prop = obj[name];
+                    if (prop === Object(prop)) {
+                        deliverChangeRecords(prop);
+                    }
+                }
+            }
+        }
     }
 
     function createObject(x) {
@@ -590,7 +622,8 @@ module Avers {
             splice.apply(collection, args);
         }
 
-        (<any>Array).observe(collection, collectionChangesCallback);
+        var fn = collection[changeCallbackSymbol] = collectionChangesCallback.bind(collection);
+        (<any>Array).observe(collection, fn);
 
         return collection;
     }
