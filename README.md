@@ -1,139 +1,104 @@
 Avers.js
 --------
 
-Avers is a small library which aims to provide a better *model* (the M in MVC)
-abstraction than traditional libraries such as [Backbone][backbone].
+Avers is a JavaScript library which serves two purposes:
 
-You describe your models in terms of properties they have. Avers takes care of
-notifying you of any changes. And because avers is aware of all the
-properties, it can alo provide functions which generate/parse JSON, thus
-greatly reducing boilerplate code.
+ - Provides a DSL to define object types and their properties. You can parse
+   JSON into these types and generate JSON from instances of these types.
 
-These properties can not only be primitive types, but also objects or
-collections. This enables you to structure your models in a much more natural
-way than existing libraries allow.
+ - Tracks changes made to these objects. The changes propagate through the
+   object hierarchy up to the root, where you can listen and act upon them.
 
-Avers doesn't include support for synchronizing models with a server. You may
-want to use different strategies for that. One is to send complete objects to
-the server. Or you may want to only send the changes to reduce the required
-bandwidth. Either way, it's easy to write the code yourself by using XHR.
+You can think of Avers as providing a better *Model* in a MVC application.
+Avers is compatible with Angular, Polymer and other web frameworks which
+expect models to be plain JavaScript objects. But it also works equally well
+with frameworks which expect immutable data.
+
+Avers is written in ES6 compatible JavaScript. It depends on some features
+which are only available in modern JavaScript runtimes. If your runtime
+doesn't provide these requirements, you'll have to load polyfills. See further
+below what Avers requires and which runtimes provide these requirements out of
+the box.
+
+The library doesn't include support for synchronizing these objects with
+a server. You are only notified of changes, how you process them is up to
+you. If you want to persist them on your server, you can serialize the whole
+object and send it over, or send only the change (which is usually very
+small). Either way, it's easy to write the code yourself by using XHR.
+
+The code is written in [TypeScript][typescript]. To use Avers in a plain
+JavaScript project, first compile `avers.ts` and then load it in your project.
+
+## Requirements
 
 The implementation makes heavy use of modern web technologies, such as
-[Object.observe][object-observe]. Though it's possible to use Avers on older
-browsers if you load an *Object.observe* shim.
+[Object.observe][object-observe], [Symbol][symbol], [Map][map] and [Set][set].
+It is compatible with the following runtimes out of the box:
 
-Avers is ready to be used in Angular, Polymer and other web frameworks which
-expect models to be plain JavaScript objects.
+ - Chrome (40+)
+ - io.js (1.1.0+)
 
-
-Example
--------
-
-An example is available in the example/ subdirectory. To use it, first install
-the dependencies and then open the index file in your browser:
-
-    npm install
-    open ./example/index.html
-
-Open the developer console and play around with the `library` object.
+On older runtimes you'll have to load a polyfill or shim.
 
 
-Documentation
--------------
+## Example
 
-You can make any of your existing classes an *Avers* class, simply by defining
-properties using one of the `Avers.define*` functions.
-
-There are four types of properties:
+First you want to define your objects and the properties they have. There are
+four types of properties:
 
  - Primitive values (string, number, boolean).
- - Variant properties (also sometimes called sum type).
- - Child objects (Avers classes).
- - Collections (arrays of Avers classes).
+ - Variant properties (also sometimes called sum types).
+ - Child objects (Avers objects).
+ - Collections (arrays of Avers objects).
+
 
 ```javascript
-    function Author() {
-    }
+function Author() {}
+Avers.definePrimitive(Author, 'firstName');
+Avers.definePrimitive(Author, 'lastName');
 
-    Avers.definePrimitive(Author, 'firstName');
-    Avers.definePrimitive(Author, 'lastName');
+function Book() {}
+Avers.definePrimitive(Book, 'title');
+Avers.defineObject(Book, 'author', Author);
 
-
-    function Book() {
-    }
-
-    Avers.definePrimitive(Book, 'title');
-    Avers.defineObject(Book, 'author', Author);
+function Library() {}
+Avers.defineCollection(Library, 'books', Book);
 ```
 
-Change events bubble up to the root. The event carries the 'path' to the
-changed object as well as the new value:
+Parse JSON into instances of these objects:
 
 ```javascript
-    var book = Avers.mk(Book, { title: 'A Tale of Two Cities' });
-    Avers.attachChangeListener(book, function(path, op) {
-        console.log("The value at path " + path + " has changed, its new value is: " + op.value)
+var book = Avers.parseJSON
+  ( Book
+  , { title  : '1984'
+    , author :
+      { firstName : 'George'
+      , lastName  : 'Orwell'
+      }
+    }
+  );
+
+var library = Avers.mk(Library, {});
+library.books.push(book);
+
+assert(book instanceof Book);
+assert(library.books.length === 1);
+```
+
+Attach change listeners to the instance. Change events bubble up to the root.
+The change carries the 'path' to the changed object as well as details about
+the type of change (set or splice).
+
+```javascript
+Avers.attachChangeListener(library, function(changes) {
+    changes.forEach(function(change) {
+        console.log(change.path, change.record);
     });
-
-    book.author.firstName = 'Charles';
-    book.author.lastName  = 'Dickens'
+});
 ```
 
-You should see two messages in the console, saying that 'author.firstName' and
-'author.lastName' have changed'
-
-Avers provides a function which uses the defined properties to serialize an
-instance into JSON:
-
-```javascript
-    var json = Avers.toJSON(book);
-    // { title: '...', author: { firstName: '...', lastName: '...' } }
-```
-
-When you register a property with `defineCollection`, avers creates a normal
-javascript array, and extends it with a few functions used to manage the
-changes. You can use any array functions you know and love to manipulate the
-collection. But you must not assign an array to that property.
-
-```javascript
-    function Library() {
-    }
-
-    Avers.defineCollection(Library, 'books', Book);
-
-    var library = Avers.mk(Library, {});
-```
-
-Models within a collection are given a unique key which stays stable even when
-you reorder the array.
-
-```javascript
-    library.books.push(book)
-    // change event with: path = 'books.c3', value = book
-
-    library.books[0].title = library.books[0].title.toLowerCase();
-    // change event with path = 'books.c3.title', value = ...
-```
-
-Avers can automatically generate and parse JSON for you. Or if you have an
-existing object, you can easily update it.
-
-```javascript
-    book = Avers.parseJSON(Book, {
-        title: '',
-        author: { firstName: '', lastName: '' }
-    });
-
-    Avers.updateObject(book.author, { firstName: '', lastName: '' });
-
-    json = Avers.toJSON(book);
-```
-
-TODO
-----
-
- - Consider using more event types, such as 'add', 'remove' on Collection.
- - Tests... have some, need more.
-
-[backbone]: http://backbonejs.org/
-[object-observe]: http://wiki.ecmascript.org/doku.php?id=harmony:observe
+[typescript]: http://www.typescriptlang.org/
+[object-observe]: http://www.html5rocks.com/en/tutorials/es7/observe/
+[symbol]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol
+[map]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
+[set]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
