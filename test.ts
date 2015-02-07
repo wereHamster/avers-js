@@ -21,14 +21,14 @@ class Author {
 
 var jsonAuthor = {
     firstName: 'Tomas', lastName: 'Carnecky'
-}
+};
 
 Avers.definePrimitive(Author, 'firstName', 'John');
 Avers.definePrimitive(Author, 'lastName',  'Doe');
 
 var unknownAuthor = Avers.mk(Author, {
     firstName: 'John',
-    lastName: 'Doe',
+    lastName: 'Doe'
 });
 
 
@@ -42,14 +42,14 @@ var jsonBook = {
     title: 'Game of Thrones',
     author: jsonAuthor,
     tags: ['violent', 'fantasy']
-}
+};
 
 var jsonBookWithId = {
     id: 'some-random-id',
     title: 'Game of Thrones',
     author: jsonAuthor,
     tags: ['violent', 'fantasy']
-}
+};
 
 Avers.definePrimitive(Book, 'title');
 Avers.defineObject(Book, 'author', Author, unknownAuthor);
@@ -64,7 +64,7 @@ class Magazine {
 var jsonMagazine = {
     title: 'Vouge',
     publisher: 'Condé Nast'
-}
+};
 
 Avers.definePrimitive(Magazine, 'title');
 Avers.definePrimitive(Magazine, 'publisher');
@@ -82,13 +82,13 @@ class Item {
 var jsonItem = {
     type: 'book',
     content: jsonBook
-}
+};
 
 var jsonBookItemWithId = {
     id: 'some-random-id',
     type : 'book',
-    content : jsonBook,
-}
+    content : jsonBook
+};
 
 
 var def = Avers.mk(Book, jsonBook);
@@ -98,7 +98,7 @@ Avers.defineVariant(Item, 'content', 'type', { book: Book, magazine: Magazine, d
 class NullableTest {
     obj     : Diary;
     variant : Book | Magazine;
-}
+};
 
 Avers.defineObject(NullableTest, 'obj', Diary);
 Avers.defineVariant(NullableTest, 'variant', 'type', { book: Book, magazine: Magazine });
@@ -106,7 +106,7 @@ Avers.defineVariant(NullableTest, 'variant', 'type', { book: Book, magazine: Mag
 
 class Library {
     items : Avers.Collection<Item>;
-}
+};
 
 Avers.defineCollection(Library, 'items', Item);
 
@@ -118,19 +118,19 @@ describe('Avers.parseJSON', function() {
         assert.equal('Game of Thrones', book.title);
         assert.equal('Tomas', book.author.firstName);
         assert.equal('Carnecky', book.author.lastName);
-    })
+    });
 
     it('should accept an empty JSON if the fields have a default', function() {
         var author = Avers.parseJSON(Author, {});
         assert.isUndefined(author.firstName);
         assert.isUndefined(author.lastName);
-    })
+    });
 
     it('should instanciate plain classes in variant properties', function() {
         var item = Avers.parseJSON(Item, { type: 'diary', content: {} });
         assert.instanceOf(item.content, Diary, 'Item content is not a Diary');
-    })
-})
+    });
+});
 
 describe('Avers.updateObject', function() {
     it('Avers.updateObject should update an existing object', function() {
@@ -139,8 +139,8 @@ describe('Avers.updateObject', function() {
         assert.equal('Game of Thrones', book.title);
         assert.equal('Tomas', book.author.firstName);
         assert.equal('Carnecky', book.author.lastName);
-    })
-})
+    });
+});
 
 describe('Avers.toJSON', function() {
     function runTest(x, json) {
@@ -152,24 +152,24 @@ describe('Avers.toJSON', function() {
 
     it('should handle primitive types', function() {
         [ null, 42, 'string' ].forEach(function(x) { runTest(x, x); });
-    })
+    });
     it('should handle objects', function() {
         runTest(Avers.parseJSON(Book, jsonBook), jsonBook);
-    })
+    });
     it('should handle variants', function() {
         var json = { type: 'book', content: jsonBook };
         runTest(Avers.parseJSON(Item, json), json);
-    })
+    });
     it('should handle variant properties with plain constructors', function() {
         var json = { type: 'diary', content: {} };
         runTest(Avers.parseJSON(Item, json), json);
-    })
+    });
     it('should handle collections', function() {
         var library = Avers.mk(Library, {});
         library.items.push(Avers.parseJSON(Item, jsonBookItemWithId));
         runTest(library.items, [jsonBookItemWithId]);
-    })
-})
+    });
+});
 
 describe('Change event propagation', function() {
     // This timeout is very conservative;
@@ -181,7 +181,10 @@ describe('Change event propagation', function() {
                 if (change.path === expectedPath) {
                     Avers.detachChangeListener(obj, changeCallback);
                     done();
-                    done = function(){};
+                    done = function() {
+                        // Intentionally left blank to avoid calling the done
+                        // callback more than once.
+                    };
                 }
             });
         });
@@ -212,7 +215,7 @@ describe('Change event propagation', function() {
         var library = Avers.mk(Library, {});
 
         expectChangeAtPath(library, 'items', done);
-        library.items.push(Avers.parseJSON(Item, jsonItem))
+        library.items.push(Avers.parseJSON(Item, jsonItem));
     });
 
     it('Avers.deliverChangeRecords should flush all changes', function(done) {
