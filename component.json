@@ -1,9 +1,0 @@
-{
-  "name": "avers",
-  "repo": "wereHamster/avers",
-  "version": "0.0.0",
-  "description": "",
-  "keywords": ["model"],
-  "main": "avers.js",
-  "scripts": ["avers.js"]
-}
