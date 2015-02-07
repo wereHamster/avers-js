@@ -29,6 +29,10 @@ small). Either way, it's easy to write the code yourself by using XHR.
 The code is written in [TypeScript][typescript]. To use Avers in a plain
 JavaScript project, first compile `avers.ts` and then load it in your project.
 
+Weight is about 21k raw, 6k compressed (uglify or google closure compiler).
+I haven't put much effort into making the code compact, so there certainly is
+some space for improvement.
+
 ## Requirements
 
 The implementation makes heavy use of modern web technologies, such as
