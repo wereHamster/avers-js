@@ -259,14 +259,14 @@ module Avers {
     }
 
     function createObjectParser(klass) {
-        return function(json) { return parseJSON(klass, json) }
+        return function(json) { return parseJSON(klass, json); };
     }
 
     function createVariantParser(name: string, typeField, typeMap) {
         return function(json, parent) {
-            var type = parent[typeField] || parent[name][typeField]
+            var type = parent[typeField] || parent[name][typeField];
             return parseJSON(typeMap[type], json);
-        }
+        };
     }
 
     function
@@ -286,6 +286,7 @@ module Avers {
 
                 return old;
             }
+            break;
 
         case PropertyType.Object:
         case PropertyType.Variant:
@@ -296,6 +297,7 @@ module Avers {
                     return withId(json, desc.parser(json, parent));
                 }
             }
+            break;
 
         case PropertyType.Primitive:
             return json;
@@ -326,18 +328,18 @@ module Avers {
               , prop = x[name];
 
             if (prop == null) {
-                if (desc.type == PropertyType.Collection) {
+                if (desc.type === PropertyType.Collection) {
                     x[name] = mkCollection([]);
                 } else {
                     var value = result(desc, 'value');
-                    if (value != prop) {
+                    if (value != null && value !== prop) {
                         migrateObject(value);
                         x[name] = value;
                     }
                 }
-            } else if (desc.type == PropertyType.Object || desc.type == PropertyType.Variant) {
+            } else if (desc.type === PropertyType.Object || desc.type === PropertyType.Variant) {
                 migrateObject(prop);
-            } else if (desc.type == PropertyType.Collection) {
+            } else if (desc.type === PropertyType.Collection) {
                 prop.forEach(migrateObject);
             }
         }
@@ -453,7 +455,7 @@ module Avers {
     export function
     typeName(typeMap, klass): string {
         for (var type in typeMap) {
-            if (typeMap[type] == klass) {
+            if (typeMap[type] === klass) {
                 return type;
             }
         }
@@ -480,7 +482,7 @@ module Avers {
 
                 if (value) {
                     json[name]           = toJSON(value);
-                    json[desc.typeField] = typeName(desc.typeMap, value.constructor)
+                    json[desc.typeField] = typeName(desc.typeMap, value.constructor);
                 }
                 break;
 
@@ -539,8 +541,8 @@ module Avers {
                 x.removed.forEach(function(x) {
                     stopListening(self, x);
 
-                    delete self.idMap[x.id]
-                    delete self.localMap[x.id]
+                    delete self.idMap[x.id];
+                    delete self.localMap[x.id];
                 });
 
                 insert.forEach(function(x) {
@@ -710,7 +712,7 @@ module Avers {
 
 
         } else {
-            throw new Error("Unknown change record: " + change.record)
+            throw new Error('Unknown change record: ' + change.record);
         }
     }
 
