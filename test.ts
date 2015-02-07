@@ -1,6 +1,22 @@
-var assert = chai.assert;
+/// <reference path="./ext/node.d.ts" />
+/// <reference path="./ext/mocha.d.ts" />
 
-function Author() {
+/// <reference path="./avers.ts" />
+
+
+declare var chai;
+
+var assert;
+try {
+    assert = require('./node_modules/chai/chai.js').assert;
+} catch (e) {
+    assert = chai.assert;
+}
+
+
+class Author {
+    firstName : string;
+    lastName  : string;
 }
 
 var jsonAuthor = {
@@ -16,7 +32,10 @@ var unknownAuthor = Avers.mk(Author, {
 });
 
 
-function Book() {
+class Book {
+    title  : string;
+    author : Author;
+    tags   : string;
 }
 
 var jsonBook = {
@@ -37,7 +56,9 @@ Avers.defineObject(Book, 'author', Author, unknownAuthor);
 Avers.defineCollection(Book, 'tags', String);
 
 
-function Magazine() {
+class Magazine {
+    title     : string;
+    publisher : string;
 }
 
 var jsonMagazine = {
@@ -49,11 +70,13 @@ Avers.definePrimitive(Magazine, 'title');
 Avers.definePrimitive(Magazine, 'publisher');
 
 
-function Diary() {
+class Diary {
 }
 
 
-function Item() {
+class Item {
+    id      : string;
+    content : Book | Magazine | Diary;
 }
 
 var jsonItem = {
@@ -61,18 +84,28 @@ var jsonItem = {
     content: jsonBook
 }
 
+var jsonBookItemWithId = {
+    id: 'some-random-id',
+    type : 'book',
+    content : jsonBook,
+}
+
+
 var def = Avers.mk(Book, jsonBook);
 Avers.defineVariant(Item, 'content', 'type', { book: Book, magazine: Magazine, diary: Diary }, def);
 
 
-function NullableTest() {
+class NullableTest {
+    obj     : Diary;
+    variant : Book | Magazine;
 }
 
-Avers.defineObject(NullableTest, 'obj');
+Avers.defineObject(NullableTest, 'obj', Diary);
 Avers.defineVariant(NullableTest, 'variant', 'type', { book: Book, magazine: Magazine });
 
 
-function Library() {
+class Library {
+    items : Avers.Collection<Item>;
 }
 
 Avers.defineCollection(Library, 'items', Item);
@@ -99,7 +132,7 @@ describe('Avers.parseJSON', function() {
     })
 })
 
-+describe('Avers.updateObject', function() {
+describe('Avers.updateObject', function() {
     it('Avers.updateObject should update an existing object', function() {
         var book = new Book();
         Avers.updateObject(book, jsonBook);
@@ -111,7 +144,7 @@ describe('Avers.parseJSON', function() {
 
 describe('Avers.toJSON', function() {
     function runTest(x, json) {
-        assert.deepEqual(json, Avers.toJSON(x));
+        assert.deepEqual(Avers.toJSON(x), json);
         assert.doesNotThrow(function() {
             JSON.stringify(Avers.toJSON(x));
         });
@@ -133,8 +166,8 @@ describe('Avers.toJSON', function() {
     })
     it('should handle collections', function() {
         var library = Avers.mk(Library, {});
-        library.items.push(Avers.parseJSON(Book, jsonBookWithId));
-        runTest(library.items, [jsonBookWithId]);
+        library.items.push(Avers.parseJSON(Item, jsonBookItemWithId));
+        runTest(library.items, [jsonBookItemWithId]);
     })
 })
 
@@ -172,7 +205,7 @@ describe('Change event propagation', function() {
         var item = Avers.mk(Item, jsonItem);
 
         expectChangeAtPath(item, 'content.author.firstName', done);
-        item.content.author.firstName = 'TOMAS';
+        (<Book>item.content).author.firstName = 'TOMAS';
     });
 
     it('should deliver changes when adding elments to a collection', function(done) {
@@ -209,13 +242,13 @@ describe('Avers.resolvePath', function() {
         assert.equal('Tomas', Avers.resolvePath(book, 'author.firstName'));
     });
     it('should resolve across arrays', function() {
-        var book, library = Avers.mk(Library, {});
+        var item, library = Avers.mk(Library, {});
 
-        library.items.push(book = Avers.parseJSON(Book, jsonBook));
+        library.items.push(item = Avers.parseJSON(Item, jsonBookItemWithId));
         Avers.deliverChangeRecords(library);
 
-        var id   = Avers.itemId(library.items, book);
-        var path = 'items.' + id + '.author.firstName';
+        var id   = Avers.itemId(library.items, item);
+        var path = 'items.' + id + '.content.author.firstName';
 
         assert.equal('Tomas', Avers.resolvePath(library, path));
     });
@@ -224,7 +257,7 @@ describe('Avers.resolvePath', function() {
     });
     it('should ignore properties that are not registered', function() {
         var book = Avers.parseJSON(Book, jsonBook);
-        book.author.something = '42';
+        (<any>book.author).something = '42';
         assert.isUndefined(Avers.resolvePath(book, 'author.something'));
     });
     it('should ignore array indices out of bounds', function() {
@@ -234,31 +267,31 @@ describe('Avers.resolvePath', function() {
     it('should ignore properties on arrays', function() {
         var library = Avers.mk(Library, {});
 
-        library.items.something = '42';
+        (<any>library.items).something = '42';
         assert.isUndefined(Avers.resolvePath(library.items, 'something'));
     });
 });
 
 describe('Avers.itemId', function() {
     it('should return undefined until changes have been delivered', function() {
-        var book, library = Avers.mk(Library, {});
+        var item, library = Avers.mk(Library, {});
 
-        library.items.push(book = Avers.parseJSON(Book, jsonBook));
-        assert.isUndefined(Avers.itemId(library.items, book));
+        library.items.push(item = Avers.parseJSON(Item, jsonItem));
+        assert.isUndefined(Avers.itemId(library.items, item));
     });
     it('should return a local id for new items', function() {
-        var book, library = Avers.mk(Library, {});
+        var item, library = Avers.mk(Library, {});
 
-        library.items.push(book = Avers.parseJSON(Book, jsonBook));
+        library.items.push(item = Avers.parseJSON(Item, jsonItem));
         Avers.deliverChangeRecords(library);
-        assert.match(Avers.itemId(library.items, book), /~.*/);
+        assert.match(Avers.itemId(library.items, item), /~.*/);
     });
     it('should return the item id when the item has one set', function() {
-        var book, library = Avers.mk(Library, {});
+        var item, library = Avers.mk(Library, {});
 
-        library.items.push(book = Avers.parseJSON(Book, jsonBookWithId));
+        library.items.push(item = Avers.parseJSON(Item, jsonBookItemWithId));
         Avers.deliverChangeRecords(library);
-        assert.equal(Avers.itemId(library.items, book), jsonBookWithId.id);
+        assert.equal(Avers.itemId(library.items, item), jsonBookItemWithId.id);
     });
 });
 
@@ -274,9 +307,9 @@ describe('Avers.clone', function() {
         assert.deepEqual(Avers.toJSON(book), Avers.toJSON(clone));
     });
     it('should clone collections', function() {
-        var book, library = Avers.mk(Library, {});
+        var item, library = Avers.mk(Library, {});
 
-        library.items.push(book = Avers.parseJSON(Book, jsonBook));
+        library.items.push(item = Avers.parseJSON(Item, jsonItem));
         var clone = Avers.clone(library.items);
         assert.deepEqual(Avers.toJSON(library.items), Avers.toJSON(clone));
     });
@@ -326,13 +359,13 @@ describe('Avers.mk', function() {
 describe('Avers.lookupItem', function() {
     it('should find the item in the collection', function() {
         var library = Avers.mk(Library, {});
-        library.items.push(Avers.mk(Book, jsonBookWithId));
+        library.items.push(Avers.mk(Item, jsonBookItemWithId));
         Avers.deliverChangeRecords(library);
         assert(!!Avers.lookupItem(library.items, jsonBookWithId.id));
     });
     it('should find the item in the collection', function() {
         var library = Avers.mk(Library, {});
-        library.items.push(Avers.mk(Book, jsonBookWithId));
+        library.items.push(Avers.mk(Item, jsonBookItemWithId));
         Avers.deliverChangeRecords(library);
         assert.isUndefined(Avers.lookupItem(library.items, 'non-existing-id'));
     });

@@ -386,23 +386,23 @@ module Avers {
         }
     }
 
-    function createObject(x) {
+    function createObject<T>(x: new() => T): T {
         var obj = new x();
         initializeProperties(obj);
         return obj;
     }
 
     export function
-    parseJSON<T>(x, json): T {
-        if (x === String || x === Number) {
-            return new x(json).valueOf();
+    parseJSON<T>(x: new() => T, json): T {
+        if ((<any>x) === String || (<any>x) === Number) {
+            return new (<any>x)(json).valueOf();
         } else {
             return withId(json, updateObject(createObject(x), json));
         }
     }
 
     export function
-    mk<T>(x, json): T {
+    mk<T>(x: new() => T, json): T {
         return migrateObject(parseJSON(x, json));
     }
 

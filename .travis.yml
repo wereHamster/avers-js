@@ -1,0 +1,2 @@
+before_script: nvm install iojs
+script: ./script/cibuild
