@@ -403,7 +403,9 @@ module Avers {
 
     export function
     mk<T>(x: new() => T, json): T {
-        return migrateObject(parseJSON(x, json));
+        var obj = migrateObject(parseJSON(x, json));
+        deliverChangeRecords(obj);
+        return obj;
     }
 
     function concatPath(self: string, child: string): string {

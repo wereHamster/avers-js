@@ -356,6 +356,23 @@ describe('Avers.mk', function() {
         var author = Avers.mk(Author, {});
         assert.equal('John', author.firstName);
     });
+
+    it('should flush all changes', function(done) {
+        var author     = Avers.mk(Author, jsonAuthor)
+          , allChanges = [];
+
+        Avers.attachChangeListener(author, changes => {
+            allChanges = allChanges.concat(changes);
+        });
+
+        author.firstName = 'Jane';
+        Avers.deliverChangeRecords(author);
+
+        setTimeout(() => {
+            assert.lengthOf(allChanges, 1);
+            done();
+        }, 10);
+    });
 });
 
 
