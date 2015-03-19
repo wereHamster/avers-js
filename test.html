@@ -10,6 +10,13 @@
     <script src="/node_modules/mocha/mocha.js"></script>
     <script>mocha.setup('bdd')</script>
 
+    <script>
+        // Ensure that Avers works with a simple Symbol polyfill
+        window.Symbol = function(x) {
+            return '__symbol_' + x;
+        };
+    </script>
+
     <script src="/test.js"></script>
 
     <script>

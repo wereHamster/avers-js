@@ -70,8 +70,8 @@ Avers.definePrimitive(Magazine, 'title');
 Avers.definePrimitive(Magazine, 'publisher');
 
 
-class Diary {
-}
+class Diary {}
+Avers.declareConstant(Diary);
 
 
 class Item {
@@ -151,7 +151,9 @@ describe('Avers.toJSON', function() {
     }
 
     it('should handle primitive types', function() {
-        [ null, 42, 'string' ].forEach(function(x) { runTest(x, x); });
+        [ null, 42, 'string' ].forEach(x => {
+            runTest(x, x);
+        });
     });
     it('should handle objects', function() {
         runTest(Avers.parseJSON(Book, jsonBook), jsonBook);

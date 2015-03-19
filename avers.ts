@@ -214,6 +214,14 @@ module Avers {
     }
 
     export function
+    declareConstant(x: any): void {
+        var proto      = x.prototype
+          , aversProps = aversProperties(proto) || Object.create(null);
+
+        proto[aversPropertiesSymbol] = aversProps;
+    }
+
+    export function
     definePrimitive<T>(x: any, name: string, defaultValue?: T) {
         var desc = { type  : PropertyType.Primitive
                    , value : defaultValue
