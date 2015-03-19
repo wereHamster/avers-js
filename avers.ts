@@ -248,6 +248,21 @@ module Avers {
 
     export function
     defineVariant<T>(x: any, name: string, typeField, typeMap, def?: T) {
+
+        // Check that all constructors are valid Avers objects. This is an
+        // invariant which we can't express in the type system, but want to
+        // ensure it nonetheless.
+        //
+        // This is something which can be removed from the production builds.
+
+        for (var k in typeMap) {
+            var aversProps = aversProperties(typeMap[k].prototype);
+            if (aversProps === undefined) {
+                throw new Error('Variant constructor of "' +
+                    k + '" is not an Avers object');
+            }
+        }
+
         var desc = { type      : PropertyType.Variant
                    , parser    : createVariantParser(name, typeField, typeMap)
                    , typeField : typeField
