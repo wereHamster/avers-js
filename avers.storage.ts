@@ -4,6 +4,15 @@
 // This is an extension for the Avers module which adds functionality to
 // manage 'Editable' objects and synchronize changes to a server through
 // a HTTP API.
+//
+// This file depends on the Computation library [1], ES6 Promises [2], and
+// the W3C fetch standard [3].
+//
+// [1]: https://github.com/wereHamster/computation
+// [2]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise
+// [3]: https://fetch.spec.whatwg.org/
+
+
 
 module Avers {
 
@@ -98,7 +107,7 @@ module Avers {
                 }
 
             } else {
-                throw new Error("Avers.lookupEditable: invalid id <" + id + ">");
+                throw new Error('Avers.lookupEditable: invalid id <' + id + '>');
             }
         });
     }
@@ -121,7 +130,7 @@ module Avers {
             timeout = null;
             if (!immediate) {
             result = func.apply(context, args);
-            if (!timeout) context = args = null;
+            if (!timeout) { context = args = null; };
             }
         }
         };
@@ -131,7 +140,7 @@ module Avers {
         args = arguments;
         timestamp = Date.now();
         var callNow = immediate && !timeout;
-        if (!timeout) timeout = setTimeout(later, wait);
+        if (!timeout) { timeout = setTimeout(later, wait); };
         if (callNow) {
             result = func.apply(context, args);
             context = args = null;
@@ -338,7 +347,7 @@ module Avers {
 
             startNextGeneration(h);
             save(h, obj);
-        }
+        };
     }
 
 
@@ -435,7 +444,7 @@ module Avers {
         return ops.reduce((a: Avers.Operation[], op: Avers.Operation): Avers.Operation[] => {
             var lastOp = a[a.length - 1];
 
-            if (lastOp && lastOp.path == op.path && lastOp.type == 'set') {
+            if (lastOp && lastOp.path === op.path && lastOp.type === 'set') {
                 a[a.length - 1] = op;
             } else {
                 a.push(op);
@@ -464,7 +473,7 @@ module Avers {
         private mergeIds(ids: string[]): void {
             var isChanged = ids.length !== this.objectIds.length ||
                 ids.reduce((a, id, index) => {
-                    return a || id != this.objectIds[index];
+                    return a || id !== this.objectIds[index];
                 }, false);
 
             if (isChanged) {
