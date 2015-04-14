@@ -1,15 +1,15 @@
 module Avers {
 
-    var splice = Array.prototype.splice;
+    let splice = Array.prototype.splice;
 
-    var idCounter = 0;
+    let idCounter = 0;
     function uniqueId(prefix: string): string {
         return prefix + (++idCounter);
     }
 
     function result(object, property: string) {
         if (object != null) {
-            var value = object[property];
+            let value = object[property];
             if (typeof value === 'function') {
                 return value.call(object);
             } else {
@@ -18,10 +18,10 @@ module Avers {
         }
     }
 
-    var hasProp = {}.hasOwnProperty;
+    let hasProp = {}.hasOwnProperty;
     function extend(obj, ...args) {
         args.forEach(function(source) {
-            for (var prop in source) {
+            for (let prop in source) {
                 if (hasProp.call(source, prop)) {
                     obj[prop] = source[prop];
                 }
@@ -38,7 +38,7 @@ module Avers {
     // Avers attaches a unique callback to each object or collection and saves
     // a reference to the callback under this symbol.
 
-    var changeCallbackSymbol = <any> Symbol('aversChangeCallback');
+    let changeCallbackSymbol = <any> Symbol('aversChangeCallback');
 
 
     // changeListenersSymbol
@@ -50,7 +50,7 @@ module Avers {
     // object (ie by using 'attachChangeListener') then it will be called only
     // once.
 
-    var changeListenersSymbol = <any> Symbol('aversChangeListeners');
+    let changeListenersSymbol = <any> Symbol('aversChangeListeners');
 
 
     // childListenersSymbol
@@ -59,11 +59,11 @@ module Avers {
     // If an object has listeners set up on any of its children, it'll keep
     // a map from child to callback in a Map stored under this symbol.
 
-    var childListenersSymbol = <any> Symbol('aversChildListeners');
+    let childListenersSymbol = <any> Symbol('aversChildListeners');
 
 
     function emitChanges(self, changes: Change<any>[]): void {
-        var listeners = self[changeListenersSymbol];
+        let listeners = self[changeListenersSymbol];
         if (listeners) {
             listeners.forEach(fn => {
                 fn(changes);
@@ -72,7 +72,7 @@ module Avers {
     }
 
     function listenTo(self, obj, callback: ChangeCallback): void {
-        var listeners = self[childListenersSymbol];
+        let listeners = self[childListenersSymbol];
         if (!listeners) {
             listeners = self[childListenersSymbol] = new Map();
         }
@@ -82,9 +82,9 @@ module Avers {
     }
 
     function stopListening(self, obj): void {
-        var listeners = self[childListenersSymbol];
+        let listeners = self[childListenersSymbol];
         if (listeners) {
-            var fn = listeners.get(obj);
+            let fn = listeners.get(obj);
             if (fn) {
                 detachChangeListener(obj, fn);
                 listeners.delete(obj);
@@ -96,7 +96,7 @@ module Avers {
     // Symbol used as the key for the avers property descriptor object. It is
     // kept private so only the Avers module has access to the descriptors.
 
-    var aversPropertiesSymbol = <any> Symbol('aversProperties');
+    let aversPropertiesSymbol = <any> Symbol('aversProperties');
 
     interface AversProperties {
         [name: string]: PropertyDescriptor;
@@ -152,7 +152,7 @@ module Avers {
     }
 
     function setValueAtPath(root, path: string, value): void {
-        var pathKeys = path.split('.')
+        let pathKeys = path.split('.')
           , lastKey  = pathKeys.pop()
           , obj      = resolvePath<any>(root, pathKeys.join('.'));
 
@@ -160,7 +160,7 @@ module Avers {
     }
 
     function parentPath(path: string): string {
-        var pathKeys = path.split('.');
+        let pathKeys = path.split('.');
         return pathKeys.slice(0, pathKeys.length - 1).join('.');
     }
 
@@ -171,7 +171,7 @@ module Avers {
     // Splice operations can currently not be applied to the root. This is
     // a restriction which may be lifted in the future.
     function applySpliceOperation(root, path: string, op: Operation): void {
-        var obj    = resolvePath<any>(root, path)
+        let obj    = resolvePath<any>(root, path)
           , parent = resolvePath<any>(root, parentPath(path))
           , prop   = aversProperties(parent)[last(path.split('.'))]
           , insert = op.insert.map(json => { return prop.parser(json); })
@@ -199,14 +199,14 @@ module Avers {
     export function
     initializeProperties(x) {
         if (!x[changeCallbackSymbol]) {
-            var fn = x[changeCallbackSymbol] = objectChangesCallback.bind(x);
+            let fn = x[changeCallbackSymbol] = objectChangesCallback.bind(x);
             (<any>Object).observe(x, fn);
         }
     }
 
     function
     defineProperty(x: any, name: string, desc: PropertyDescriptor): void {
-        var proto      = x.prototype
+        let proto      = x.prototype
           , aversProps = aversProperties(proto) || Object.create(null);
 
         aversProps[name] = desc;
@@ -215,7 +215,7 @@ module Avers {
 
     export function
     declareConstant(x: any): void {
-        var proto      = x.prototype
+        let proto      = x.prototype
           , aversProps = aversProperties(proto) || Object.create(null);
 
         proto[aversPropertiesSymbol] = aversProps;
@@ -223,7 +223,7 @@ module Avers {
 
     export function
     definePrimitive<T>(x: any, name: string, defaultValue?: T) {
-        var desc = { type  : PropertyType.Primitive
+        let desc = { type  : PropertyType.Primitive
                    , value : defaultValue
                    };
 
@@ -232,7 +232,7 @@ module Avers {
 
     export function
     defineObject<T>(x: any, name: string, klass: any, def?: T) {
-        var desc = { type   : PropertyType.Object
+        let desc = { type   : PropertyType.Object
                    , parser : createObjectParser(klass)
                    , value  : undefined
                    };
@@ -255,15 +255,15 @@ module Avers {
         //
         // This is something which can be removed from the production builds.
 
-        for (var k in typeMap) {
-            var aversProps = aversProperties(typeMap[k].prototype);
+        for (let k in typeMap) {
+            let aversProps = aversProperties(typeMap[k].prototype);
             if (aversProps === undefined) {
                 throw new Error('Variant constructor of "' +
                     k + '" is not an Avers object');
             }
         }
 
-        var desc = { type      : PropertyType.Variant
+        let desc = { type      : PropertyType.Variant
                    , parser    : createVariantParser(name, typeField, typeMap)
                    , typeField : typeField
                    , typeMap   : typeMap
@@ -281,7 +281,7 @@ module Avers {
 
     export function
     defineCollection(x: any, name: string, klass: any) {
-        var desc = { type   : PropertyType.Collection
+        let desc = { type   : PropertyType.Collection
                    , parser : createObjectParser(klass)
                    };
 
@@ -294,7 +294,7 @@ module Avers {
 
     function createVariantParser(name: string, typeField, typeMap) {
         return function(json, parent) {
-            var type = parent[typeField] || parent[name][typeField];
+            let type = parent[typeField] || parent[name][typeField];
             return parseJSON(typeMap[type], json);
         };
     }
@@ -336,10 +336,10 @@ module Avers {
 
     export function
     updateObject(x, json) {
-        var aversProps = aversProperties(x);
+        let aversProps = aversProperties(x);
 
-        for (var name in aversProps) {
-            var desc = aversProps[name];
+        for (let name in aversProps) {
+            let desc = aversProps[name];
 
             if (json[name] != null) {
                 x[name] = parseValue(desc, x[name], json[name], json);
@@ -351,17 +351,17 @@ module Avers {
 
     export function
     migrateObject(x) {
-        var aversProps = aversProperties(x);
+        let aversProps = aversProperties(x);
 
-        for (var name in aversProps) {
-            var desc = aversProps[name]
+        for (let name in aversProps) {
+            let desc = aversProps[name]
               , prop = x[name];
 
             if (prop == null) {
                 if (desc.type === PropertyType.Collection) {
                     x[name] = mkCollection([]);
                 } else {
-                    var value = result(desc, 'value');
+                    let value = result(desc, 'value');
                     if (value != null && value !== prop) {
                         migrateObject(value);
                         x[name] = value;
@@ -386,7 +386,7 @@ module Avers {
 
     export function
     deliverChangeRecords(obj): void {
-        var fn = obj[changeCallbackSymbol];
+        let fn = obj[changeCallbackSymbol];
         if (fn) {
             (<any>Object).deliverChangeRecords(fn);
 
@@ -397,10 +397,10 @@ module Avers {
                 });
 
             } else if (obj === Object(obj)) {
-                var aversProps = aversProperties(obj);
+                let aversProps = aversProperties(obj);
 
-                for (var name in aversProps) {
-                    var prop = obj[name];
+                for (let name in aversProps) {
+                    let prop = obj[name];
                     if (prop === Object(prop)) {
                         deliverChangeRecords(prop);
                     }
@@ -410,7 +410,7 @@ module Avers {
     }
 
     function createObject<T>(x: new() => T): T {
-        var obj = new x();
+        let obj = new x();
         initializeProperties(obj);
         return obj;
     }
@@ -426,7 +426,7 @@ module Avers {
 
     export function
     mk<T>(x: new() => T, json): T {
-        var obj = migrateObject(parseJSON(x, json));
+        let obj = migrateObject(parseJSON(x, json));
         deliverChangeRecords(obj);
         return obj;
     }
@@ -440,7 +440,7 @@ module Avers {
     }
 
     function toObjectOperation(x: ChangeRecord): Operation.Set {
-        var object = x.object;
+        let object = x.object;
 
         return new Operation.Set
             ( object
@@ -453,7 +453,7 @@ module Avers {
     // Return true if the property can generate change events and thus the
     // parent should listen to events.
     function isObservableProperty(propertyDescriptor: PropertyDescriptor): boolean {
-        var type = propertyDescriptor.type;
+        let type = propertyDescriptor.type;
         return type === PropertyType.Object || type === PropertyType.Variant || type === PropertyType.Collection;
     }
 
@@ -469,7 +469,7 @@ module Avers {
 
     function objectChangesCallback(changes: ChangeRecord[]): void {
         changes.forEach(function(x) {
-            var self = x.object
+            let self = x.object
               , propertyDescriptor = aversProperties(self)[x.name];
 
             if (!propertyDescriptor) {
@@ -479,7 +479,7 @@ module Avers {
             if (x.type === 'add') {
                 emitChanges(self, [new Change(x.name, toObjectOperation(x))]);
 
-                var value = self[x.name];
+                let value = self[x.name];
                 if (value) {
                     if (isObservableProperty(propertyDescriptor)) {
                         forwardChanges(self, value, x.name);
@@ -493,7 +493,7 @@ module Avers {
                         stopListening(self, x.oldValue);
                     }
 
-                    var value = self[x.name];
+                    let value = self[x.name];
                     if (value) {
                         stopListening(self, value);
                         forwardChanges(self, value, x.name);
@@ -511,7 +511,7 @@ module Avers {
 
     export function
     typeName(typeMap, klass): string {
-        for (var type in typeMap) {
+        for (let type in typeMap) {
             if (typeMap[type] === klass) {
                 return type;
             }
@@ -519,11 +519,11 @@ module Avers {
     }
 
     function objectJSON(x) {
-        var json       = Object.create(null)
+        let json       = Object.create(null)
           , aversProps = aversProperties(x);
 
-        for (var name in aversProps) {
-            var desc = aversProps[name];
+        for (let name in aversProps) {
+            let desc = aversProps[name];
 
             switch (desc.type) {
             case PropertyType.Primitive:
@@ -535,7 +535,7 @@ module Avers {
                 break;
 
             case PropertyType.Variant:
-                var value = x[name];
+                let value = x[name];
 
                 if (value) {
                     json[name]           = toJSON(value);
@@ -571,8 +571,8 @@ module Avers {
             // ASSERT: collection.idMap[item.id] === item
             return item.id;
         } else {
-            var localMap = collection.localMap;
-            for (var id in localMap) {
+            let localMap = collection.localMap;
+            for (let id in localMap) {
                 if (localMap[id] === item) {
                     return id;
                 }
@@ -582,10 +582,10 @@ module Avers {
 
     function collectionChangesCallback(changes: ChangeRecord[]): void {
         changes.forEach(function(x) {
-            var self = x.object;
+            let self = x.object;
 
             if (x.type === 'splice') {
-                var insert = self.slice(x.index, x.index + x.addedCount);
+                let insert = self.slice(x.index, x.index + x.addedCount);
 
                 emitChanges(self, [new Change(null, new Operation.Splice
                     ( x.object
@@ -611,7 +611,7 @@ module Avers {
 
                     if (Object(x) === x) {
                         listenTo(self, x, function(changes) {
-                            var id = itemId(self, x);
+                            let id = itemId(self, x);
                             emitChanges(self, changes.map(change => {
                                 return embedChange(change, id);
                             }));
@@ -639,15 +639,15 @@ module Avers {
     }
 
     function mkCollection<T extends Item>(items: T[]): Collection<T> {
-        var collection = <Collection<T>> [];
+        let collection = <Collection<T>> [];
         resetCollection(collection);
 
         if (items.length > 0) {
-            var args = (<any>[0,0]).concat(items);
+            let args = (<any>[0,0]).concat(items);
             splice.apply(collection, args);
         }
 
-        var fn = collection[changeCallbackSymbol] = collectionChangesCallback.bind(collection);
+        let fn = collection[changeCallbackSymbol] = collectionChangesCallback.bind(collection);
         (<any>Array).observe(collection, fn);
 
         return collection;
@@ -751,7 +751,7 @@ module Avers {
     export function
     changeOperation(change: Change<any>): Operation {
         if (change.record instanceof Operation.Set) {
-            var set = <Operation.Set> change.record;
+            let set = <Operation.Set> change.record;
 
             return { path   : change.path
                    , type   : 'set'
@@ -759,7 +759,7 @@ module Avers {
                    };
 
         } else if (change.record instanceof Operation.Splice) {
-            var splice = <Operation.Splice> change.record;
+            let splice = <Operation.Splice> change.record;
 
             return { path   : change.path
                    , type   : 'splice'
@@ -787,7 +787,7 @@ module Avers {
 
     export function
     attachChangeListener(obj: any, fn: ChangeCallback): void {
-        var listeners = obj[changeListenersSymbol] || new Set();
+        let listeners = obj[changeListenersSymbol] || new Set();
         obj[changeListenersSymbol] = listeners;
 
         listeners.add(fn);
@@ -801,7 +801,7 @@ module Avers {
 
     export function
     detachChangeListener(obj: any, fn: ChangeCallback): void {
-        var listeners = obj[changeListenersSymbol];
+        let listeners = obj[changeListenersSymbol];
         if (listeners) {
             listeners.delete(fn);
         }
