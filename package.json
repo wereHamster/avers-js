@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "typescript": "*",
+    "tslint": "*",
     "mocha": "*",
     "chai": "*",
     "serve": "*"
