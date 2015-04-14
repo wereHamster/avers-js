@@ -1,4 +1,5 @@
 module Avers {
+    'use strict';
 
     let splice = Array.prototype.splice;
 
