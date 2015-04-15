@@ -66,7 +66,7 @@ module Avers {
 
     function
     mkEditable<T>(h: Handle, id: string): Editable<T> {
-        var obj = h.objectCache.get(id);
+        let obj = h.objectCache.get(id);
         if (!obj) {
             obj = new Editable<T>(id);
             obj.promise = new Promise((resolve, reject) => {
@@ -99,7 +99,7 @@ module Avers {
     lookupEditable<T>(h: Handle, id: string): Computation<Editable<T>> {
         return new Computation(() => {
             if (id) {
-                var obj = mkEditable<T>(h, id);
+                let obj = mkEditable<T>(h, id);
                 if (!obj.content) {
                     return <Editable<T>> Computation.Pending;
                 } else {
@@ -119,10 +119,10 @@ module Avers {
     export enum Status { Empty, Loading, Loaded, Failed }
 
     function debounce(func, wait, immediate = undefined) {
-        var timeout, args, context, timestamp, result;
+        let timeout, args, context, timestamp, result;
 
-        var later = function() {
-        var last = Date.now() - timestamp;
+        let later = function() {
+        let last = Date.now() - timestamp;
 
         if (last < wait && last >= 0) {
             timeout = setTimeout(later, wait - last);
@@ -139,7 +139,7 @@ module Avers {
         context = this;
         args = arguments;
         timestamp = Date.now();
-        var callNow = immediate && !timeout;
+        let callNow = immediate && !timeout;
         if (!timeout) { timeout = setTimeout(later, wait); };
         if (callNow) {
             result = func.apply(context, args);
@@ -252,7 +252,7 @@ module Avers {
 
     export function
     fetchObject(h: Handle, id: string): Promise<any> {
-        var url = endpointUrl(h, '/objects/' + id);
+        let url = endpointUrl(h, '/objects/' + id);
         return fetch(url, { credentials: 'cors' }).then(res => {
             if (res.status === 200) {
                 return res.json();
@@ -266,7 +266,7 @@ module Avers {
 
     export function
     createObject(h: Handle, type: string, content): Promise<string> {
-        var url  = endpointUrl(h, '/objects')
+        let url  = endpointUrl(h, '/objects')
           , body = JSON.stringify({ type: type, content: content });
 
         return fetch(url, { credentials: 'cors', method: 'POST', body: body }).then(res => {
@@ -285,7 +285,7 @@ module Avers {
     , type  : string
     , content
     ): Promise<{}> {
-        var url  = endpointUrl(h, '/objects/' + objId)
+        let url  = endpointUrl(h, '/objects/' + objId)
           , body = JSON.stringify({ type: type, content: content });
 
         return fetch(url, { credentials: 'cors', method: 'POST', body: body }).then(res => {
@@ -299,7 +299,7 @@ module Avers {
 
     export function
     deleteObject(h: Handle, id: string): Promise<void> {
-        var url = endpointUrl(h, '/objects/' + id);
+        let url = endpointUrl(h, '/objects/' + id);
         return fetch(url, { credentials: 'cors', method: 'DELETE' }).then(res => {
             console.log('Deleted', id, res.status);
             startNextGeneration(h);
@@ -316,7 +316,7 @@ module Avers {
         obj.createdBy      = body.createdBy;
         obj.revisionId     = body.revisionId || 0;
 
-        var ctor           = h.infoTable.get(obj.type);
+        let ctor           = h.infoTable.get(obj.type);
         obj.content        = Avers.parseJSON<T>(ctor, body.content);
         obj.shadowContent  = Avers.parseJSON<T>(ctor, body.content);
 
@@ -337,11 +337,11 @@ module Avers {
     ( h   : Handle
     , obj : Editable<T>
     ): (changes: Avers.Change<any>[]) => void {
-        var save: any = debounce(saveEditable, 1500);
+        let save: any = debounce(saveEditable, 1500);
 
         return function onChange(changes: Avers.Change<any>[]): void {
             changes.forEach(change => {
-                var op = Avers.changeOperation(change);
+                let op = Avers.changeOperation(change);
                 obj.localChanges.push(op);
             });
 
@@ -367,7 +367,7 @@ module Avers {
         }
 
 
-        var data = JSON.stringify(
+        let data = JSON.stringify(
             { objectId       : obj.objectId
             , revisionId     : obj.revisionId
             , operations     : filterOps(obj.localChanges)
@@ -379,7 +379,7 @@ module Avers {
 
         startNextGeneration(h);
 
-        var url = endpointUrl(h, '/objects/' + obj.objectId);
+        let url = endpointUrl(h, '/objects/' + obj.objectId);
         fetch(url, { credentials: 'cors', method: 'PATCH', body: data }).then(res => {
             if (res.status === 200) {
                 return res.json();
@@ -402,11 +402,11 @@ module Avers {
             // numSavingEntities--;
 
             body.previousPatches.forEach(patch => {
-                var op = patch.operation;
+                let op = patch.operation;
                 Avers.applyOperation(obj.shadowContent, op.path, op);
             });
             body.resultingPatches.forEach(patch => {
-                var op = patch.operation;
+                let op = patch.operation;
                 Avers.applyOperation(obj.shadowContent, op.path, op);
             });
             obj.localChanges.forEach(op => {
@@ -442,7 +442,7 @@ module Avers {
     // Filter out subsequent operations which touch the same path.
     function filterOps(ops: Avers.Operation[]): Avers.Operation[] {
         return ops.reduce((a: Avers.Operation[], op: Avers.Operation): Avers.Operation[] => {
-            var lastOp = a[a.length - 1];
+            let lastOp = a[a.length - 1];
 
             if (lastOp && lastOp.path === op.path && lastOp.type === 'set') {
                 a[a.length - 1] = op;
@@ -471,7 +471,7 @@ module Avers {
         }
 
         private mergeIds(ids: string[]): void {
-            var isChanged = ids.length !== this.objectIds.length ||
+            let isChanged = ids.length !== this.objectIds.length ||
                 ids.reduce((a, id, index) => {
                     return a || id !== this.objectIds[index];
                 }, false);
@@ -483,7 +483,7 @@ module Avers {
         }
 
         private fetch(): void {
-            var now = Date.now();
+            let now = Date.now();
             if (now - this.fetchedAt > 10 * 1000) {
                 this.fetchedAt = now;
 
@@ -524,7 +524,7 @@ module Avers {
           ) {}
 
         get(keyInput: T): ObjectCollection {
-            var key        = this.keyFn(keyInput)
+            let key        = this.keyFn(keyInput)
               , collection = this.cache.get(key);
 
             if (!collection) {
