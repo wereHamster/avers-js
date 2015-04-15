@@ -10,11 +10,19 @@
 //
 // [1]: https://github.com/wereHamster/computation
 // [2]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise
-// [3]: https://fetch.spec.whatwg.org/
 
 
 
 module Avers {
+
+    // TODO: Drop this once TypeScript itself provides the definition of the
+    // W3C Fetch API or find one (eg. DefinitelyTyped) and point users to it.
+
+    export interface Fetch {
+        (input: string, init?): Promise<any>;
+    }
+
+
 
     export interface ObjectConstructor<T> {
         new(): T;
@@ -34,6 +42,10 @@ module Avers {
             // out the trailing slash.
             //
             // Example: "//localhost:8000"
+
+          , public fetch : Fetch
+            // ^ API to send network requests. If you use this extension in
+            // a web browser, you can pass in the 'fetch' function directly.
 
           , public infoTable : Map<string, ObjectConstructor<any>>
             // ^ All object types which the client can parse.
@@ -211,9 +223,9 @@ module Avers {
     ( obj : Editable<T>
     , req : Promise<R>
     , fn  : (res: R) => void
-    ): void {
+    ): Promise<void> {
         obj.networkRequest = req;
-        req.then(res => {
+        return req.then(res => {
             if (obj.networkRequest === req) {
                 obj.networkRequest = undefined;
 
@@ -235,7 +247,7 @@ module Avers {
     export function
     loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
         obj.status = Status.Loading;
-        runNetworkRequest(obj, fetchObject(h, obj.objectId), json => {
+        return runNetworkRequest(obj, fetchObject(h, obj.objectId), json => {
             try {
                 resolveEditable<T>(h, obj, json);
             } catch(e) {
@@ -253,7 +265,7 @@ module Avers {
     export function
     fetchObject(h: Handle, id: string): Promise<any> {
         let url = endpointUrl(h, '/objects/' + id);
-        return fetch(url, { credentials: 'cors' }).then(res => {
+        return h.fetch(url, { credentials: 'cors' }).then(res => {
             if (res.status === 200) {
                 return res.json();
             } else {
@@ -269,7 +281,7 @@ module Avers {
         let url  = endpointUrl(h, '/objects')
           , body = JSON.stringify({ type: type, content: content });
 
-        return fetch(url, { credentials: 'cors', method: 'POST', body: body }).then(res => {
+        return h.fetch(url, { credentials: 'cors', method: 'POST', body: body }).then(res => {
             return res.json().then(json => {
                 startNextGeneration(h);
                 return json.id;
@@ -288,7 +300,7 @@ module Avers {
         let url  = endpointUrl(h, '/objects/' + objId)
           , body = JSON.stringify({ type: type, content: content });
 
-        return fetch(url, { credentials: 'cors', method: 'POST', body: body }).then(res => {
+        return h.fetch(url, { credentials: 'cors', method: 'POST', body: body }).then(res => {
             return res.json().then(json => {
                 startNextGeneration(h);
                 return {};
@@ -300,7 +312,7 @@ module Avers {
     export function
     deleteObject(h: Handle, id: string): Promise<void> {
         let url = endpointUrl(h, '/objects/' + id);
-        return fetch(url, { credentials: 'cors', method: 'DELETE' }).then(res => {
+        return h.fetch(url, { credentials: 'cors', method: 'DELETE' }).then(res => {
             console.log('Deleted', id, res.status);
             startNextGeneration(h);
         });
@@ -380,7 +392,7 @@ module Avers {
         startNextGeneration(h);
 
         let url = endpointUrl(h, '/objects/' + obj.objectId);
-        fetch(url, { credentials: 'cors', method: 'PATCH', body: data }).then(res => {
+        h.fetch(url, { credentials: 'cors', method: 'PATCH', body: data }).then(res => {
             if (res.status === 200) {
                 return res.json();
             } else {
@@ -487,7 +499,7 @@ module Avers {
             if (now - this.fetchedAt > 10 * 1000) {
                 this.fetchedAt = now;
 
-                fetch(this.url, { credentials: 'cors' }).then(res => {
+                this.h.fetch(this.url, { credentials: 'cors' }).then(res => {
                     return res.json().then(json => {
                         this.mergeIds(json);
                     });
