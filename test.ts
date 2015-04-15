@@ -1,11 +1,8 @@
-/// <reference path="./ext/node.d.ts" />
 /// <reference path="./ext/mocha.d.ts" />
-
 /// <reference path="./avers.ts" />
 
 
-declare var chai;
-
+declare var chai, require;
 var assert;
 try {
     assert = require('./node_modules/chai/chai.js').assert;

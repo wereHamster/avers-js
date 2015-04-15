@@ -143,5 +143,5 @@ declare module "mocha" {
         run(onComplete?: (failures: number) => void): void;
     }
 
-    export = Mocha;
+    export default Mocha;
 }
