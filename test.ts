@@ -1,14 +1,19 @@
 /// <reference path="./ext/mocha.d.ts" />
+/// <reference path="./ext/computation.ts" />
+
 /// <reference path="./avers.ts" />
+/// <reference path="./avers.storage.ts" />
 
 
-declare var chai, require;
+declare var chai, require, process;
 var assert;
 try {
     assert = require('./node_modules/chai/chai.js').assert;
 } catch (e) {
     assert = chai.assert;
 }
+
+const sentinel: any = {};
 
 
 class Author {
@@ -106,6 +111,30 @@ class Library {
 };
 
 Avers.defineCollection(Library, 'items', Item);
+
+
+function mkHandle(json) {
+    function fetch(url: string) {
+        return Promise.resolve(
+            { status : 200
+            , json   : () => { return Promise.resolve(json); }
+            }
+        );
+    }
+
+    let infoTable = new Map<string, Avers.ObjectConstructor<any>>();
+    infoTable.set('library', Library);
+
+    return new Avers.Handle('/api', fetch, infoTable);
+}
+
+const libraryObjectResponse =
+    { type      : 'library'
+    , id        : 'id'
+    , createdAt : new Date().toISOString()
+    , createdBy : 'me'
+    , content   : {}
+    };
 
 
 
@@ -387,5 +416,23 @@ describe('Avers.lookupItem', function() {
         library.items.push(Avers.mk(Item, jsonBookItemWithId));
         Avers.deliverChangeRecords(library);
         assert.isUndefined(Avers.lookupItem(library.items, 'non-existing-id'));
+    });
+});
+
+
+describe('Avers.lookupEditable', function() {
+    it('should return a Computation in Pending status', function() {
+        assert.equal(sentinel, Avers.lookupEditable(mkHandle({}), 'id').get(sentinel));
+    });
+    it('should resolve to the object after it is loaded', function(done) {
+        let h = mkHandle(libraryObjectResponse);
+
+        Avers.lookupEditable(h, 'id').get(sentinel);
+        setTimeout(() => {
+            var obj = Avers.lookupEditable(h, 'id').get(sentinel);
+            assert.instanceOf(obj, Avers.Editable);
+            assert.instanceOf(obj.content, Library);
+            done();
+        }, 10);
     });
 });
