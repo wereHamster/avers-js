@@ -808,10 +808,3 @@ module Avers {
         }
     }
 }
-
-declare var exports;
-if (typeof exports !== 'undefined') {
-    exports = Avers;
-} else {
-    this.Avers = Avers;
-}
