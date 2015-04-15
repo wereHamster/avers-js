@@ -1,7 +1,7 @@
 module Avers {
     'use strict';
 
-    let splice = Array.prototype.splice;
+    const splice = Array.prototype.splice;
 
     let idCounter = 0;
     function uniqueId(prefix: string): string {
@@ -19,7 +19,7 @@ module Avers {
         }
     }
 
-    let hasProp = {}.hasOwnProperty;
+    const hasProp = {}.hasOwnProperty;
     function extend(obj, ...args) {
         args.forEach(function(source) {
             for (let prop in source) {
@@ -39,7 +39,7 @@ module Avers {
     // Avers attaches a unique callback to each object or collection and saves
     // a reference to the callback under this symbol.
 
-    let changeCallbackSymbol = <any> Symbol('aversChangeCallback');
+    const changeCallbackSymbol = Symbol('aversChangeCallback');
 
 
     // changeListenersSymbol
@@ -51,7 +51,7 @@ module Avers {
     // object (ie by using 'attachChangeListener') then it will be called only
     // once.
 
-    let changeListenersSymbol = <any> Symbol('aversChangeListeners');
+    const changeListenersSymbol = Symbol('aversChangeListeners');
 
 
     // childListenersSymbol
@@ -60,7 +60,7 @@ module Avers {
     // If an object has listeners set up on any of its children, it'll keep
     // a map from child to callback in a Map stored under this symbol.
 
-    let childListenersSymbol = <any> Symbol('aversChildListeners');
+    const childListenersSymbol = Symbol('aversChildListeners');
 
 
     function emitChanges(self, changes: Change<any>[]): void {
@@ -97,7 +97,7 @@ module Avers {
     // Symbol used as the key for the avers property descriptor object. It is
     // kept private so only the Avers module has access to the descriptors.
 
-    let aversPropertiesSymbol = <any> Symbol('aversProperties');
+    const aversPropertiesSymbol = Symbol('aversProperties');
 
     interface AversProperties {
         [name: string]: PropertyDescriptor;
