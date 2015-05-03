@@ -265,7 +265,7 @@ module Avers {
     export function
     fetchObject(h: Handle, id: string): Promise<any> {
         let url = endpointUrl(h, '/objects/' + id);
-        return h.fetch(url, { credentials: 'cors' }).then(res => {
+        return h.fetch(url, { credentials: 'include' }).then(res => {
             if (res.status === 200) {
                 return res.json();
             } else {
@@ -281,7 +281,7 @@ module Avers {
         let url  = endpointUrl(h, '/objects')
           , body = JSON.stringify({ type: type, content: content });
 
-        return h.fetch(url, { credentials: 'cors', method: 'POST', body: body }).then(res => {
+        return h.fetch(url, { credentials: 'include', method: 'POST', body: body }).then(res => {
             return res.json().then(json => {
                 startNextGeneration(h);
                 return json.id;
@@ -300,7 +300,7 @@ module Avers {
         let url  = endpointUrl(h, '/objects/' + objId)
           , body = JSON.stringify({ type: type, content: content });
 
-        return h.fetch(url, { credentials: 'cors', method: 'POST', body: body }).then(res => {
+        return h.fetch(url, { credentials: 'include', method: 'POST', body: body }).then(res => {
             return res.json().then(json => {
                 startNextGeneration(h);
                 return {};
@@ -312,7 +312,7 @@ module Avers {
     export function
     deleteObject(h: Handle, id: string): Promise<void> {
         let url = endpointUrl(h, '/objects/' + id);
-        return h.fetch(url, { credentials: 'cors', method: 'DELETE' }).then(res => {
+        return h.fetch(url, { credentials: 'include', method: 'DELETE' }).then(res => {
             console.log('Deleted', id, res.status);
             startNextGeneration(h);
         });
@@ -392,7 +392,7 @@ module Avers {
         startNextGeneration(h);
 
         let url = endpointUrl(h, '/objects/' + obj.objectId);
-        h.fetch(url, { credentials: 'cors', method: 'PATCH', body: data }).then(res => {
+        h.fetch(url, { credentials: 'include', method: 'PATCH', body: data }).then(res => {
             if (res.status === 200) {
                 return res.json();
             } else {
@@ -499,7 +499,7 @@ module Avers {
             if (now - this.fetchedAt > 10 * 1000) {
                 this.fetchedAt = now;
 
-                this.h.fetch(this.url, { credentials: 'cors' }).then(res => {
+                this.h.fetch(this.url, { credentials: 'include' }).then(res => {
                     return res.json().then(json => {
                         this.mergeIds(json);
                     });
