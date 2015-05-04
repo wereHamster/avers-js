@@ -82,6 +82,7 @@ module Avers {
             loadEditable(h, obj);
 
             h.objectCache.set(id, obj);
+            startNextGeneration(h);
         }
 
         return obj;
@@ -224,19 +225,26 @@ module Avers {
     // Run a network request attached to the given 'Editable'. This overwrites
     // (invalidates) any currently running request. The callback is invoked
     // only when the request is still valid.
+    //
+    // Note: The callback MUST NOT throw exceptions.
 
     function
     runNetworkRequest<T, R>
-    ( obj : Editable<T>
+    ( h   : Handle
+    , obj : Editable<T>
     , req : Promise<R>
     , fn  : (res: R) => void
     ): Promise<void> {
         obj.networkRequest = req;
+        startNextGeneration(h);
+
         return req.then(res => {
             if (obj.networkRequest === req) {
                 obj.networkRequest = undefined;
 
                 fn(res);
+
+                startNextGeneration(h);
 
             } else {
                 throw new Error('runNetworkRequest: not current anymore');
@@ -256,7 +264,7 @@ module Avers {
         obj.status = Status.Loading;
         startNextGeneration(h);
 
-        return runNetworkRequest(obj, fetchObject(h, obj.objectId), json => {
+        return runNetworkRequest(h, obj, fetchObject(h, obj.objectId), json => {
             try {
                 resolveEditable<T>(h, obj, json);
             } catch(e) {
@@ -352,6 +360,8 @@ module Avers {
         saveEditable(h, obj);
 
         Avers.migrateObject(obj.content);
+
+        startNextGeneration(h);
     }
 
 
