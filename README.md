@@ -101,8 +101,54 @@ Avers.attachChangeListener(library, function(changes) {
 });
 ```
 
+# Avers.Storage Extension
+
+The `avers.storage.ts` file extends the `Avers` module with functionality to
+manage and synchronize objects with a compliant server (one implementation is
+available as a [Haskell library][avers-haskell] library).
+
+All data is managed in a `Handle`. Initialize it with the base URL to the API
+server, the `fetch` function which is used to send out network requests, and
+a table with all object types which you want to support.
+
+```javascript
+var infoTable = { book: Book };
+var h = new Avers.Handle('//api.domain.tld', fetch.bind(window), infoTable);
+```
+
+The handle has a `generationNumber` property. It is a number, incremented
+every time any data managed by the handle changes. Use it to detect when you
+need to re-render the UI (eg. by using `Object.observe`).
+
+The extension defines a new type, `Editable<T>`, which wraps a top-level
+object with metadata needed for synchronization (such as whether it has been
+loaded or not, any local changes you have done to the object, or the network
+request in flight).
+
+Many of the functions return either a `Promise` or a `Computation`. For
+example to lookup an object in your react Rendering function, use
+`lookupEditable`. It returns a `Computation`, so make sure to
+
+```javascript
+class BookSummary extends React.Component<P, S> {
+    render() {
+        return Avers.lookupEditable<Book>(aversH, this.props.bookId).fmap(e => {
+            var book   = e.content
+              , author = book.author;
+
+            return <span>{book.title} by {author.firstName} {author.lastName}</span>;
+
+        ).get(<span>Loading book {this.props.bookId}...</span>);
+    }
+}
+```
+
+
+
+
 [typescript]: http://www.typescriptlang.org/
 [object-observe]: http://www.html5rocks.com/en/tutorials/es7/observe/
 [symbol]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol
 [map]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [set]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
+[avers-haskell]: https://github.com/wereHamster/avers-haskell/
