@@ -557,8 +557,7 @@ module Avers {
 
     export class KeyedObjectCollection<T> {
 
-        cache : Map<string, ObjectCollection>
-            = new Map<string, ObjectCollection>();
+        cache = new Map<string, ObjectCollection>();
 
         constructor
           ( public h     : Handle
