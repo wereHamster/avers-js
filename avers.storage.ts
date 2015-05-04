@@ -73,27 +73,13 @@ module Avers {
     // Create a new Editable and load an object from the server into it. The
     // object is cached in the handle, so it is safe to call this function
     // repeatedly with the same id.
-    //
-    // The content is fetched in the background. You can use the promise
-    // or check the editable status to see when it's ready.
 
     function
     mkEditable<T>(h: Handle, id: string): Editable<T> {
         let obj = h.objectCache.get(id);
         if (!obj) {
             obj = new Editable<T>(id);
-            obj.promise = new Promise((resolve, reject) => {
-                loadEditable(h, obj).then(() => {
-                    resolve(obj);
-
-                }).catch(err => {
-                    console.error('Avers.mkEditable', err);
-                    reject(err);
-
-                }).then(() => {
-                    startNextGeneration(h);
-                });
-            });
+            loadEditable(h, obj);
 
             h.objectCache.set(id, obj);
         }
@@ -122,6 +108,32 @@ module Avers {
             } else {
                 throw new Error('Avers.lookupEditable: invalid id <' + id + '>');
             }
+        });
+    }
+
+
+    // fetchEditable
+    // -----------------------------------------------------------------------
+    //
+    // Wait until an Editable is Loaded or Failed (the Promise is resolved or
+    // rejected accordingly). This is useful in asynchronous code where you
+    // can't use 'Computation' (lookupEditable).
+
+    export function
+    fetchEditable<T>(h: Handle, id: string): Promise<Editable<T>> {
+        return new Promise((resolve, reject) => {
+            function await(obj) {
+                if (obj.status === Status.Loaded) {
+                    resolve(obj);
+                } else if (obj.status === Status.Failed) {
+                    reject();
+                } else {
+                    var req = obj.networkRequest || loadEditable(h, obj);
+                    req.then(() => { await(obj); }).catch(() => { await(obj); });
+                }
+            }
+
+            await(mkEditable(h, id));
         });
     }
 
@@ -180,12 +192,6 @@ module Avers {
         // Before a promise applies its effects, it checks whether it is still
         // current, and if not it will simply abort.
 
-
-        promise : Promise<Editable<T>>
-        // ^ Promise which resolves once the object is loaded. The value of
-        // this promise is the object itself. May be rejected if the loading
-        // fails (eg. due to a server error, or because the objectId is
-        // invalid)
 
         type             : string;
 
@@ -248,12 +254,16 @@ module Avers {
     export function
     loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
         obj.status = Status.Loading;
+        startNextGeneration(h);
+
         return runNetworkRequest(obj, fetchObject(h, obj.objectId), json => {
             try {
                 resolveEditable<T>(h, obj, json);
             } catch(e) {
                 obj.status = Status.Failed;
             }
+
+            startNextGeneration(h);
         });
     }
 
