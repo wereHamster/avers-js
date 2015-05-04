@@ -431,26 +431,40 @@ module Avers {
                 ].join('')
             );
 
-            body.previousPatches.forEach(patch => {
+
+            // Apply all server patches to the shadow content, to bring it up
+            // to date WRT the server version. Also bump the revisionId to
+            // reflect what the server has.
+
+            var serverPatches = [].concat(body.previousPatches, body.resultingPatches);
+
+            obj.revisionId += serverPatches.length;
+            serverPatches.forEach(patch => {
                 let op = patch.operation;
-                Avers.applyOperation(obj.shadowContent, op.path, op);
-            });
-            body.resultingPatches.forEach(patch => {
-                let op = patch.operation;
-                Avers.applyOperation(obj.shadowContent, op.path, op);
-            });
-            obj.localChanges.forEach(op => {
                 Avers.applyOperation(obj.shadowContent, op.path, op);
             });
 
+
+            // Clone the server version and apply any local changes which the
+            // client has created since submitting.
             obj.content = Avers.clone(obj.shadowContent);
-            Avers.deliverChangeRecords(obj.content);
+            obj.localChanges.forEach(op => {
+                Avers.applyOperation(obj.content, op.path, op);
+            });
 
+
+            // Flush change records and attach a change listener to the new
+            // content.
+            Avers.deliverChangeRecords(obj.content);
             Avers.attachChangeListener(obj.content, mkChangeListener(h, obj));
 
-            obj.revisionId += body.previousPatches.length + body.resultingPatches.length;
+
+            // Clear out any traces that we've submitted changes to the
+            // server.
             obj.submittedChanges = [];
 
+
+            // See if we have any more local changes which we need to save.
             saveEditable(h, obj);
 
         }).catch(err => {
