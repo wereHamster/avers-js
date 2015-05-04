@@ -431,9 +431,6 @@ module Avers {
                 ].join('')
             );
 
-            // numUnsavedChanges -= obj.submittedChanges.length;
-            // numSavingEntities--;
-
             body.previousPatches.forEach(patch => {
                 let op = patch.operation;
                 Avers.applyOperation(obj.shadowContent, op.path, op);
@@ -460,8 +457,6 @@ module Avers {
             // The server would presumably respond with changes which
             // were submitted before us, and we'd have to rebase our
             // changes on top of that.
-
-            //numSavingEntities--;
 
             obj.localChanges     = obj.submittedChanges.concat(obj.localChanges);
             obj.submittedChanges = [];
