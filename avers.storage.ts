@@ -5,11 +5,12 @@
 // manage 'Editable' objects and synchronize changes to a server through
 // a HTTP API.
 //
-// This file depends on the Computation library [1], ES6 Promises [2], and
-// the W3C fetch standard [3].
+// This file depends on the Computation library [1], ES6 Promises [2] and
+// Symbol [3].
 //
 // [1]: https://github.com/wereHamster/computation
 // [2]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise
+// [3]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol
 
 
 
