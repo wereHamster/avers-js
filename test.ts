@@ -3,6 +3,7 @@
 
 /// <reference path="./avers.ts" />
 /// <reference path="./avers.storage.ts" />
+/// <reference path="./avers.session.ts" />
 
 
 declare var chai, require, process;

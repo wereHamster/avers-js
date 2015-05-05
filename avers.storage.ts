@@ -55,12 +55,12 @@ module Avers {
     }
 
 
-    function startNextGeneration(h: Handle): void {
+    export function startNextGeneration(h: Handle): void {
         h.generationNumber++;
     }
 
 
-    function
+    export function
     endpointUrl(h: Handle, path: string): string {
         return h.apiHost + path;
     }
