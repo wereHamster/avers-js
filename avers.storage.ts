@@ -36,6 +36,7 @@ module Avers {
         // ^ Incremented everytime something managed by this handle changes.
 
         objectCache = new Map<string, Editable<any>>();
+        patchCache  = new Map<string, Static<Patch>>();
 
         constructor
           ( public apiHost : string
@@ -129,7 +130,7 @@ module Avers {
                 } else if (obj.status === Status.Failed) {
                     reject();
                 } else {
-                    var req = obj.networkRequest || loadEditable(h, obj);
+                    let req = obj.networkRequest || loadEditable(h, obj);
                     req.then(() => { await(obj); }).catch(() => { await(obj); });
                 }
             }
@@ -436,7 +437,7 @@ module Avers {
             // to date WRT the server version. Also bump the revisionId to
             // reflect what the server has.
 
-            var serverPatches = [].concat(body.previousPatches, body.resultingPatches);
+            let serverPatches = [].concat(body.previousPatches, body.resultingPatches);
 
             obj.revisionId += serverPatches.length;
             serverPatches.forEach(patch => {
@@ -585,4 +586,140 @@ module Avers {
         });
     }
 
+
+
+    // Static<T>
+    // -----------------------------------------------------------------------
+    //
+    // A static value which is read-only. Is loaded from the server when
+    // required, then cached indefinitely (or until pruned from the cache).
+    // The objects are managed by the Avers Handle, they trigger a generation
+    // change when they are modified.
+
+    export class Static<T> {
+
+        status : Status = Status.Empty;
+        value  : T      = undefined;
+
+        constructor
+          ( public fetch : () => Promise<T>
+          ) {}
+    }
+
+
+
+    // staticValue
+    // -----------------------------------------------------------------------
+    //
+    // Extract the value from the Static as a Computation. If the value is not
+    // loaded yet, then a request will be sent to the server to fetch it.
+
+    export function
+    staticValue<T>(h: Handle, s: Static<T>): Computation<T> {
+        return new Computation(() => {
+            loadStatic(h, s);
+
+            if (s.value === undefined) {
+                return Computation.Pending;
+            } else {
+                return s.value;
+            }
+        });
+    }
+
+
+
+    // loadStatic
+    // -----------------------------------------------------------------------
+    //
+    // Internal function which is used to initiate the fetch if required.
+    //
+    // FIXME: Retry the request if the promise failed.
+
+    function
+    loadStatic<T>(h: Handle, s: Static<T>): void {
+        if (s.status === Status.Empty) {
+            s.status = Status.Loading;
+            startNextGeneration(h);
+
+            s.fetch().then(v => {
+                s.status = Status.Loaded;
+                s.value  = v;
+
+            }).catch(err => {
+                s.status = Status.Failed;
+
+            }).then(() => {
+                startNextGeneration(h);
+            });
+        }
+    }
+
+
+    // Patch
+    // -----------------------------------------------------------------------
+    //
+    // Patches are read-only on the client.
+
+    export class Patch {
+        constructor
+          ( public objectId   : string
+          , public revisionId : number
+          , public authorId   : string
+          , public createdAt  : string
+          , public operation  : Operation
+          ) {}
+    }
+
+
+
+    export function
+    fetchPatch(h: Handle, objectId: string, revId: number): Promise<Patch> {
+        let url = endpointUrl(h, '/objects/' + objectId + '/patches/' + revId);
+        return h.fetch(url, { credentials: 'include' }).then(res => {
+            if (res.status === 200) {
+                return res.json().then(json => {
+                    return new Patch
+                        ( json.objectId
+                        , json.revisionId
+                        , json.authorId
+                        , json.createdAt
+                        , json.operation
+                        );
+                });
+            } else {
+                throw new Error('Avers.fetchPatch: status ' + res.status);
+            }
+        });
+    }
+
+
+    function
+    mkPatch(h: Handle, objectId: string, revId: number): Static<Patch> {
+        let key = objectId + '@' + revId
+          , s   = h.patchCache.get(key);
+
+        if (!s) {
+            s = new Static<Patch>(() => {
+                return fetchPatch(h, objectId, revId);
+            });
+
+            h.patchCache.set(key, s);
+            startNextGeneration(h);
+        }
+
+        return s;
+    }
+
+
+    // lookupPatch
+    // -----------------------------------------------------------------------
+    //
+    // Get an patch by its identifier (objectId + revId). This computation is
+    // pending until the patch has been fetched from the server.
+
+    export function
+    lookupPatch(h: Handle, objectId: string, revId: number): Computation<Patch> {
+        return staticValue(h, mkPatch(h, objectId, revId));
+    }
 }
