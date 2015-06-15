@@ -79,10 +79,13 @@ module Avers {
 
     export function
     networkRequests(h: Handle): NetworkRequest[] {
-        return Object.keys(h.objectCache).map(objId => {
-            let editable = h.objectCache.get(objId);
-            return editable.networkRequest;
-        }).filter(x => { return x !== undefined; });
+        let ret = [];
+
+        for (let editable of h.objectCache.values()) {
+            ret.push(editable.networkRequest);
+        }
+
+        return ret.filter(x => { return x !== undefined; });
     }
 
 
