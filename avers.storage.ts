@@ -49,6 +49,11 @@ module Avers {
             // ^ API to send network requests. If you use this extension in
             // a web browser, you can pass in the 'fetch' function directly.
 
+          , public now : () => number
+            // ^ Function which returns the current time. You can use 'Date.now'
+            // or 'window.performance.now', depending on how accurate time
+            // resolution you need.
+
           , public infoTable : Map<string, ObjectConstructor<any>>
             // ^ All object types which the client can parse.
 
@@ -130,7 +135,9 @@ module Avers {
                 } else if (obj.status === Status.Failed) {
                     reject();
                 } else {
-                    let req = obj.networkRequest || loadEditable(h, obj);
+                    let nr  = obj.networkRequest
+                      , req = nr ? nr.promise : loadEditable(h, obj);
+
                     req.then(() => { await(obj); }).catch(() => { await(obj); });
                 }
             }
@@ -178,16 +185,26 @@ module Avers {
     }
 
 
+    export class NetworkRequest {
+        constructor
+          ( public createdAt : number
+          , public promise   : Promise<{}>
+          ) {}
+    }
+
+
     export class Editable<T> {
 
         status : Status = Status.Empty;
 
 
-        networkRequest : Promise<{}> = undefined;
+        networkRequest : NetworkRequest = undefined;
 
         // ^ If we have a active network request at the moment (either to
-        // fetch the object or saving changes etc) then this is the promise of
-        // that request.
+        // fetch the object or saving changes etc) then this describes it. We
+        // store the time when the request was started along with the promise.
+        // This helps identify long running requests, so the UI can update
+        // accordingly.
         //
         // To cancel the request (or rather, its effects on the local state),
         // simply set the field to 'undefined' or start another request.
@@ -236,11 +253,13 @@ module Avers {
     , req : Promise<R>
     , fn  : (res: R) => void
     ): Promise<void> {
-        obj.networkRequest = req;
+        let nr = new NetworkRequest(h.now(), req);
+        obj.networkRequest = nr;
+
         startNextGeneration(h);
 
         return req.then(res => {
-            if (obj.networkRequest === req) {
+            if (obj.networkRequest === nr) {
                 obj.networkRequest = undefined;
 
                 fn(res);

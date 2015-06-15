@@ -114,6 +114,10 @@ class Library {
 Avers.defineCollection(Library, 'items', Item);
 
 
+function now(): number {
+    return Date.now();
+}
+
 function mkHandle(json) {
     function fetch(url: string) {
         return Promise.resolve(
@@ -126,7 +130,7 @@ function mkHandle(json) {
     let infoTable = new Map<string, Avers.ObjectConstructor<any>>();
     infoTable.set('library', Library);
 
-    return new Avers.Handle('/api', fetch, infoTable);
+    return new Avers.Handle('/api', fetch, now, infoTable);
 }
 
 const libraryObjectResponse =
