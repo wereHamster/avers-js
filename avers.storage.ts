@@ -72,6 +72,20 @@ module Avers {
     }
 
 
+    // networkRequests
+    // -----------------------------------------------------------------------
+    //
+    // Array of all network requests which are currently active on the handle.
+
+    export function
+    networkRequests(h: Handle): NetworkRequest[] {
+        return Object.keys(h.objectCache).map(objId => {
+            let editable = h.objectCache.get(objId);
+            return editable.networkRequest;
+        }).filter(x => { return x !== undefined; });
+    }
+
+
 
     // mkEditable
     // -----------------------------------------------------------------------
