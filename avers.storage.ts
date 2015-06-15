@@ -81,11 +81,32 @@ module Avers {
     networkRequests(h: Handle): NetworkRequest[] {
         let ret = [];
 
-        for (let editable of h.objectCache.values()) {
-            ret.push(editable.networkRequest);
+        for (let obj of h.objectCache.values()) {
+            ret.push(obj.networkRequest);
         }
 
         return ret.filter(x => { return x !== undefined; });
+    }
+
+
+
+    // localChanges
+    // -----------------------------------------------------------------------
+    //
+    // Array of all objects which have local changes which were not yet
+    // submitted to the server.
+
+    export function
+    localChanges(h: Handle): { obj: Editable<any>; changes: Operation[]; }[] {
+        let ret = [];
+
+        for (let obj of h.objectCache.values()) {
+            if (obj.localChanges.length > 0) {
+                ret.push({ obj: obj, changes: obj.localChanges });
+            }
+        }
+
+        return ret;
     }
 
 
