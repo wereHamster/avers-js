@@ -265,8 +265,7 @@ module Avers {
     ( h   : Handle
     , obj : Editable<T>
     , req : Promise<R>
-    , fn  : (res: R) => void
-    ): Promise<void> {
+    ): Promise<R> {
         let nr = new NetworkRequest(h.now(), req);
         obj.networkRequest = nr;
 
@@ -275,10 +274,9 @@ module Avers {
         return req.then(res => {
             if (obj.networkRequest === nr) {
                 obj.networkRequest = undefined;
-
-                fn(res);
-
                 startNextGeneration(h);
+
+                return res;
 
             } else {
                 throw new Error('runNetworkRequest: not current anymore');
@@ -298,7 +296,7 @@ module Avers {
         obj.status = Status.Loading;
         startNextGeneration(h);
 
-        return runNetworkRequest(h, obj, fetchObject(h, obj.objectId), json => {
+        return runNetworkRequest(h, obj, fetchObject(h, obj.objectId)).then(json => {
             try {
                 resolveEditable<T>(h, obj, json);
             } catch(e) {
@@ -447,13 +445,15 @@ module Avers {
         startNextGeneration(h);
 
         let url = endpointUrl(h, '/objects/' + obj.objectId);
-        h.fetch(url, { credentials: 'include', method: 'PATCH', body: data }).then(res => {
+        let req = h.fetch(url, { credentials: 'include', method: 'PATCH', body: data }).then(res => {
             if (res.status === 200) {
                 return res.json();
             } else {
                 throw new Error('Avers.saveEditable: status ' + res.status);
             }
-        }).then(body => {
+        });
+
+        runNetworkRequest(h, obj, req).then(body => {
             console.log(
                 [ 'Saved '
                 , body.resultingPatches.length
