@@ -133,6 +133,11 @@ function mkHandle(json) {
     return new Avers.Handle('/api', fetch, now, infoTable);
 }
 
+function mkObjectCollection() {
+    var h = mkHandle(['one', 'two']);
+    return new Avers.ObjectCollection(h, '/test');
+}
+
 const libraryObjectResponse =
     { type      : 'library'
     , id        : 'id'
@@ -439,5 +444,25 @@ describe('Avers.lookupEditable', function() {
             assert.instanceOf(obj.content, Library);
             done();
         }, 10);
+    });
+});
+
+describe('Avers.ObjectCollection', function() {
+    describe('ids', function() {
+        it('should return a pending Computation when not fetched yet', function() {
+            var col = mkObjectCollection();
+            assert.equal(sentinel, col.ids.get(sentinel));
+        });
+        it('should resolve to the object after it is loaded', function(done) {
+            var col = mkObjectCollection();
+            col.ids.get(sentinel);
+
+            setTimeout(() => {
+                var ids = col.ids.get(sentinel);
+                assert.isArray(ids);
+                assert.lengthOf(ids, 2);
+                done();
+            }, 10);
+        });
     });
 });

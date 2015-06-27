@@ -567,11 +567,11 @@ module Avers {
           ) {
             this.fetchedAt = 0;
             this.url       = endpointUrl(h, '/collection/' + collectionName);
-            this.objectIds = [];
+            this.objectIds = undefined;
         }
 
         private mergeIds(ids: string[]): void {
-            let isChanged = ids.length !== this.objectIds.length ||
+            let isChanged = this.objectIds === undefined || ids.length !== this.objectIds.length ||
                 ids.reduce((a, id, index) => {
                     return a || id !== this.objectIds[index];
                 }, false);
@@ -600,7 +600,11 @@ module Avers {
         get ids(): Computation<string[]> {
             this.fetch();
             return new Computation(() => {
-                return this.objectIds;
+                if (this.objectIds === undefined) {
+                    return Computation.Pending;
+                } else {
+                    return this.objectIds;
+                }
             });
         }
     }
