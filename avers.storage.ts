@@ -157,6 +157,20 @@ module Avers {
     }
 
 
+    // lookupContent
+    // -----------------------------------------------------------------------
+    //
+    // Often you don't need the whole Editable wrapper, but the content inside
+    // it. This is a convenience function to get just that.
+
+    export function
+    lookupContent<T>(h: Handle, id: string): Computation<T> {
+        return lookupEditable<T>(h, id).fmap(x => {
+            return x.content;
+        });
+    }
+
+
     // fetchEditable
     // -----------------------------------------------------------------------
     //
