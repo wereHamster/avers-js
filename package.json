@@ -9,7 +9,7 @@
   "devDependencies": {
     "typescript": "*",
     "babel": "*",
-    "tslint": "*",
+    "tslint": "2.3.0-beta",
     "mocha": "*",
     "chai": "*",
     "serve": "*"
