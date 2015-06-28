@@ -429,6 +429,15 @@ describe('Avers.lookupItem', function() {
     });
 });
 
+describe('Avers.attachGenerationListener', function() {
+    it('should invoke the listener when the data cahnges', function(done) {
+        let h = mkHandle({});
+        Avers.attachGenerationListener(h, () => { done(); });
+        Avers.startNextGeneration(h);
+    });
+});
+
+
 
 describe('Avers.lookupEditable', function() {
     it('should return a Computation in Pending status', function() {

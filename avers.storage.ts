@@ -66,6 +66,45 @@ module Avers {
     }
 
 
+    // attachGenerationListener
+    // -----------------------------------------------------------------------
+    //
+    // Attach a listener to the handle which will be invoked everytime data
+    // managed by the handle changes.
+    //
+    // If you need to detache the listener later, hang on to the return value
+    // and pass that to 'detachGenerationListener'.
+
+    export function
+    attachGenerationListener(h: Handle, f: () => void): Function {
+        function generationChangeCallback(records) {
+            var changedGeneration = records.some(rec => {
+                return rec.name === 'generationNumber';
+            });
+
+            if (changedGeneration) {
+                f();
+            }
+        }
+
+        (<any>Object).observe(h, generationChangeCallback);
+
+        return generationChangeCallback;
+    }
+
+
+    // detachGenerationListener
+    // -----------------------------------------------------------------------
+    //
+    // Detach a generation listener from the handle. The listener is the value
+    // you get from 'attachGenerationListener'.
+
+    export function
+    detachGenerationListener(h: Handle, listener: Function): void {
+        (<any>Object).unobserve(h, listener);
+    }
+
+
     export function
     endpointUrl(h: Handle, path: string): string {
         return h.apiHost + path;
