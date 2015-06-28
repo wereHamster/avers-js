@@ -320,13 +320,6 @@ describe('Avers.itemId', function() {
         library.items.push(item = Avers.parseJSON(Item, jsonItem));
         assert.isUndefined(Avers.itemId(library.items, item));
     });
-    it('should return a local id for new items', function() {
-        var item, library = Avers.mk(Library, {});
-
-        library.items.push(item = Avers.parseJSON(Item, jsonItem));
-        Avers.deliverChangeRecords(library);
-        assert.match(Avers.itemId(library.items, item), /~.*/);
-    });
     it('should return the item id when the item has one set', function() {
         var item, library = Avers.mk(Library, {});
 

@@ -126,7 +126,7 @@ module Avers {
 
     function descendInto(obj, key: string) {
         if (Array.isArray(obj)) {
-            return obj.idMap[key] || obj.localMap[key];
+            return obj.idMap[key];
         } else if (obj === Object(obj) && aversProperties(obj) && aversProperties(obj)[key]) {
             return obj[key];
         }
@@ -568,17 +568,8 @@ module Avers {
 
     export function
     itemId<T extends Item>(collection: Collection<T>, item: T): string {
-        if (item.id) {
-            // ASSERT: collection.idMap[item.id] === item
-            return item.id;
-        } else {
-            let localMap = collection.localMap;
-            for (let id in localMap) {
-                if (localMap[id] === item) {
-                    return id;
-                }
-            }
-        }
+        // ASSERT: collection.idMap[item.id] === item
+        return item.id;
     }
 
     function collectionChangesCallback(changes: ChangeRecord[]): void {
@@ -598,17 +589,11 @@ module Avers {
 
                 x.removed.forEach(function(x) {
                     stopListening(self, x);
-
                     delete self.idMap[x.id];
-                    delete self.localMap[x.id];
                 });
 
                 insert.forEach(function(x) {
-                    if (x.id) {
-                        self.idMap[x.id] = x;
-                    } else {
-                        self.localMap[uniqueId('~')] = x;
-                    }
+                    self.idMap[x.id] = x;
 
                     if (Object(x) === x) {
                         listenTo(self, x, function(changes) {
@@ -628,15 +613,12 @@ module Avers {
     }
 
     export interface Collection<T extends Item> extends Array<T> {
-        idMap    : { [id: string]: T };
-        localMap : { [id: string]: T };
+        idMap : { [id: string]: T };
     }
 
     function resetCollection<T extends Item>(x: Collection<T>): void {
         x.splice(0, x.length);
-
-        x.idMap    = Object.create(null);
-        x.localMap = Object.create(null);
+        x.idMap = Object.create(null);
     }
 
     function mkCollection<T extends Item>(items: T[]): Collection<T> {
