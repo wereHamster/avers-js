@@ -751,27 +751,24 @@ module Avers {
 
     export function
     changeOperation(change: Change<any>): Operation {
-        if (change.record instanceof Operation.Set) {
-            let set = <Operation.Set> change.record;
+        const record = change.record;
 
+        if (record instanceof Operation.Set) {
             return { path   : change.path
                    , type   : 'set'
-                   , value  : toJSON(set.value)
+                   , value  : toJSON(record.value)
                    };
 
-        } else if (change.record instanceof Operation.Splice) {
-            let splice = <Operation.Splice> change.record;
-
+        } else if (record instanceof Operation.Splice) {
             return { path   : change.path
                    , type   : 'splice'
-                   , index  : splice.index
-                   , remove : splice.remove.length
-                   , insert : toJSON(splice.insert)
+                   , index  : record.index
+                   , remove : record.remove.length
+                   , insert : toJSON(record.insert)
                    };
 
-
         } else {
-            throw new Error('Unknown change record: ' + change.record);
+            throw new Error('Unknown change record: ' + record);
         }
     }
 
