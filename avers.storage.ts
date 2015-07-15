@@ -16,6 +16,9 @@
 
 module Avers {
 
+    const aversNamespace = Symbol('aversNamespace');
+
+
     // TODO: Drop this once TypeScript itself provides the definition of the
     // W3C Fetch API or find one (eg. DefinitelyTyped) and point users to it.
 
@@ -36,7 +39,7 @@ module Avers {
         // ^ Incremented everytime something managed by this handle changes.
 
         objectCache = new Map<string, Editable<any>>();
-        patchCache  = new Map<string, Static<Patch>>();
+        staticCache = new Map<Symbol, Map<string, Static<any>>>();
 
         constructor
           ( public apiHost : string
@@ -59,6 +62,27 @@ module Avers {
 
           ) {}
     }
+
+
+
+    interface Action {
+        label  : string;
+        applyF : (h: Handle) => void;
+    }
+
+    function mkAction(label, applyF): Action {
+        return { label, applyF };
+    }
+
+    function modifyHandle(h: Handle, act: Action): void {
+        (<any>Object).getNotifier(h).notify({
+            type: 'Avers::Action', action: act
+        });
+
+        act.applyF(h);
+        startNextGeneration(h);
+    }
+
 
 
     export function startNextGeneration(h: Handle): void {
@@ -162,10 +186,9 @@ module Avers {
         let obj = h.objectCache.get(id);
         if (!obj) {
             obj = new Editable<T>(id);
-            loadEditable(h, obj);
-
             h.objectCache.set(id, obj);
-            startNextGeneration(h);
+
+            loadEditable(h, obj);
         }
 
         return obj;
@@ -220,7 +243,9 @@ module Avers {
     export function
     fetchEditable<T>(h: Handle, id: string): Promise<Editable<T>> {
         return new Promise((resolve, reject) => {
-            function await(obj) {
+            (function check(obj?) {
+                obj = mkEditable(h, id);
+
                 if (obj.status === Status.Loaded) {
                     resolve(obj);
                 } else if (obj.status === Status.Failed) {
@@ -229,11 +254,9 @@ module Avers {
                     let nr  = obj.networkRequest
                       , req = nr ? nr.promise : loadEditable(h, obj);
 
-                    req.then(() => { await(obj); }).catch(() => { await(obj); });
+                    req.then(check).catch(check);
                 }
-            }
-
-            await(mkEditable(h, id));
+            })();
         });
     }
 
@@ -328,6 +351,12 @@ module Avers {
     }
 
 
+    function withEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void):void {
+        let obj = h.objectCache.get(objId);
+        if (obj) { f(obj); }
+    }
+
+
     // runNetworkRequest
     // -----------------------------------------------------------------------
     //
@@ -344,14 +373,16 @@ module Avers {
     , req : Promise<R>
     ): Promise<R> {
         let nr = new NetworkRequest(h.now(), req);
-        obj.networkRequest = nr;
 
-        startNextGeneration(h);
+        modifyHandle(h, mkAction(`attachNetworkRequest(${obj.objectId})`, h => {
+            withEditable(h, obj.objectId, obj => { obj.networkRequest = nr; });
+        }));
 
         return req.then(res => {
             if (obj.networkRequest === nr) {
-                obj.networkRequest = undefined;
-                startNextGeneration(h);
+                modifyHandle(h, mkAction(`clearNetworkRequest(${obj.objectId})`, h => {
+                    withEditable(h, obj.objectId, obj => { obj.networkRequest = undefined; });
+                }));
 
                 return res;
 
@@ -368,19 +399,24 @@ module Avers {
     // Fetch an object from the server and initialize the Editable with the
     // response.
 
+    function setEditableStatusA(objId: string, status: Status): Action {
+        function applyF(h: Handle) {
+            withEditable(h, objId, obj => { obj.status = Status.Loading; });
+        }
+
+        return { label: `setEditableStatus(${objId}, ${Status[status]})`, applyF };
+    }
+
     export function
     loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
-        obj.status = Status.Loading;
-        startNextGeneration(h);
+        modifyHandle(h, setEditableStatusA(obj.objectId, Status.Loading));
 
         return runNetworkRequest(h, obj, fetchObject(h, obj.objectId)).then(json => {
             try {
                 resolveEditable<T>(h, obj, json);
             } catch(e) {
-                obj.status = Status.Failed;
+                modifyHandle(h, setEditableStatusA(obj.objectId, Status.Failed));
             }
-
-            startNextGeneration(h);
         });
     }
 
@@ -446,31 +482,36 @@ module Avers {
         });
     }
 
-    function
-    resolveEditable<T>(h: Handle, obj: Editable<T>, body): void {
-        obj.status         = Status.Loaded;
+    function initContent(h: Handle, obj: Editable<any>): void {
+        obj.content = Avers.clone(obj.shadowContent);
 
-        obj.type           = body.type;
-        obj.objectId       = body.id;
-        obj.createdAt      = new Date(Date.parse(body.createdAt));
-        obj.createdBy      = body.createdBy;
-        obj.revisionId     = body.revisionId || 0;
-
-        let ctor           = h.infoTable.get(obj.type);
-        obj.content        = Avers.parseJSON<T>(ctor, body.content);
-        obj.shadowContent  = Avers.parseJSON<T>(ctor, body.content);
+        [].concat(obj.submittedChanges, obj.localChanges).forEach(o => {
+            Avers.applyOperation(obj.content, o.path, o);
+        });
 
         Avers.deliverChangeRecords(obj.content);
-        Avers.deliverChangeRecords(obj.shadowContent);
-
         Avers.attachChangeListener(obj.content, mkChangeListener(h, obj));
+    }
 
-        // Save any migrations to the server.
-        saveEditable(h, obj);
+    function
+    resolveEditable<T>(h: Handle, obj: Editable<T>, body): void {
+        modifyHandle(h, mkAction(`resolveEditable(${obj.objectId})`, h => {
+            withEditable(h, obj.objectId, obj => {
+                obj.status         = Status.Loaded;
 
-        Avers.migrateObject(obj.content);
+                obj.type           = body.type;
+                obj.objectId       = body.id;
+                obj.createdAt      = new Date(Date.parse(body.createdAt));
+                obj.createdBy      = body.createdBy;
+                obj.revisionId     = body.revisionId || 0;
 
-        startNextGeneration(h);
+                obj.shadowContent  = Avers.parseJSON<T>(h.infoTable.get(obj.type), body.content);
+                Avers.deliverChangeRecords(obj.shadowContent);
+
+                initContent(h, obj);
+                Avers.migrateObject(obj.content);
+            });
+        }));
     }
 
 
@@ -482,12 +523,13 @@ module Avers {
         let save: any = debounce(saveEditable, 1500);
 
         return function onChange(changes: Avers.Change<any>[]): void {
-            changes.forEach(change => {
-                let op = Avers.changeOperation(change);
-                obj.localChanges.push(op);
-            });
+            let ops = changes.map(Avers.changeOperation);
 
-            startNextGeneration(h);
+            modifyHandle(h, mkAction(`localChanges(${obj.objectId},${ops.length})`, h => {
+                obj.localChanges = obj.localChanges.concat(ops);
+                initContent(h, obj);
+            }));
+
             save(h, obj);
         };
     }
@@ -516,10 +558,16 @@ module Avers {
             }
         );
 
-        obj.submittedChanges = obj.localChanges;
-        obj.localChanges     = [];
 
-        startNextGeneration(h);
+        // We immeadiately mark the Editable as being saved. This ensures that
+        // any future attempts to save the editable are skipped.
+        modifyHandle(h, mkAction(`prepareLocalChanges(${obj.objectId})`, h => {
+            withEditable(h, obj.objectId, obj => {
+                obj.submittedChanges = obj.localChanges;
+                obj.localChanges     = [];
+            });
+        }));
+
 
         let url = endpointUrl(h, '/objects/' + obj.objectId);
         let req = h.fetch(url, { credentials: 'include', method: 'PATCH', body: data }).then(res => {
@@ -547,33 +595,34 @@ module Avers {
             // to date WRT the server version. Also bump the revisionId to
             // reflect what the server has.
 
-            let serverPatches = [].concat(body.previousPatches, body.resultingPatches);
+            modifyHandle(h, mkAction(`applyServerResponse(${obj.objectId})`, h => {
+                let serverPatches = [].concat(body.previousPatches, body.resultingPatches);
 
-            obj.revisionId += serverPatches.length;
-            serverPatches.forEach(patch => {
-                let op = patch.operation;
-                Avers.applyOperation(obj.shadowContent, op.path, op);
-            });
-
-
-            // Clone the server version and apply any local changes which the
-            // client has created since submitting.
-            obj.content = Avers.clone(obj.shadowContent);
-            obj.localChanges.forEach(op => {
-                Avers.applyOperation(obj.content, op.path, op);
-            });
+                obj.revisionId += serverPatches.length;
+                serverPatches.forEach(patch => {
+                    let op = patch.operation;
+                    Avers.applyOperation(obj.shadowContent, op.path, op);
+                });
 
 
-            // Flush change records and attach a change listener to the new
-            // content.
-            Avers.deliverChangeRecords(obj.content);
-            Avers.attachChangeListener(obj.content, mkChangeListener(h, obj));
+                // Clone the server version and apply any local changes which the
+                // client has created since submitting.
+                obj.content = Avers.clone(obj.shadowContent);
+                obj.localChanges.forEach(op => {
+                    Avers.applyOperation(obj.content, op.path, op);
+                });
 
 
-            // Clear out any traces that we've submitted changes to the
-            // server.
-            obj.submittedChanges = [];
+                // Flush change records and attach a change listener to the new
+                // content.
+                Avers.deliverChangeRecords(obj.content);
+                Avers.attachChangeListener(obj.content, mkChangeListener(h, obj));
 
+
+                // Clear out any traces that we've submitted changes to the
+                // server.
+                obj.submittedChanges = [];
+            }));
 
             // See if we have any more local changes which we need to save.
             saveEditable(h, obj);
@@ -583,11 +632,12 @@ module Avers {
             // were submitted before us, and we'd have to rebase our
             // changes on top of that.
 
-            obj.localChanges     = obj.submittedChanges.concat(obj.localChanges);
-            obj.submittedChanges = [];
-
-        }).then(() => {
-            startNextGeneration(h);
+            modifyHandle(h, mkAction(`restoreLocalChanges(${obj.objectId})`, h => {
+                withEditable(h, obj.objectId, obj => {
+                    obj.localChanges     = obj.submittedChanges.concat(obj.localChanges);
+                    obj.submittedChanges = [];
+                });
+            }));
         });
     }
 
@@ -630,8 +680,9 @@ module Avers {
                 }, false);
 
             if (isChanged) {
-                this.objectIds = ids;
-                startNextGeneration(this.h);
+                modifyHandle(this.h, mkAction(`updateObjectCollection(${this.collectionName})`, () => {
+                    this.objectIds = ids;
+                }));
             }
         }
 
@@ -665,8 +716,9 @@ module Avers {
 
     export function
     resetObjectCollection(c: ObjectCollection): void {
-        c.fetchedAt = 0;
-        startNextGeneration(c.h);
+        modifyHandle(c.h, mkAction(`resetObjectCollection(${c.collectionName})`, h => {
+            c.fetchedAt = 0;
+        }));
     }
 
 
@@ -716,8 +768,39 @@ module Avers {
         value  : T      = undefined;
 
         constructor
-          ( public fetch : () => Promise<T>
+          ( public ns    : Symbol
+          , public key   : string
+          , public fetch : () => Promise<T>
           ) {}
+    }
+
+
+    // mkStatic
+    // -----------------------------------------------------------------------
+    //
+    // Even though this function has access to the 'Handle' and indeed modifies
+    // it, the changes have has no externally observable effect.
+
+    export function
+    mkStatic<T>
+    ( h     : Handle
+    , ns    : Symbol
+    , key   : string
+    , fetch : () => Promise<T>
+    ): Static<T> {
+        let n = h.staticCache.get(ns);
+        if (!n) {
+            n = new Map<string, Static<any>>();
+            h.staticCache.set(ns, n);
+        }
+
+        let x = n.get(key);
+        if (!x) {
+            x = new Static(ns, key, fetch);
+            n.set(key, x);
+        }
+
+        return x;
     }
 
 
@@ -750,21 +833,40 @@ module Avers {
     //
     // FIXME: Retry the request if the promise failed.
 
+
+    function lookupStatic<T>(h: Handle, ns: Symbol, key: string): Static<T> {
+        let n = h.staticCache.get(ns);
+        if (n) { return n.get(key); }
+    }
+
+    function withStatic(h: Handle, x: Static<any>, f: (s: Static<any>) => void): void {
+        let s = lookupStatic<any>(h, x.ns, x.key);
+        if (s) { f(s); }
+    }
+
     function
     loadStatic<T>(h: Handle, s: Static<T>): void {
         if (s.status === Status.Empty) {
-            s.status = Status.Loading;
-            startNextGeneration(h);
+            modifyHandle(h, mkAction(`loadStatic(${s.ns}, ${s.key})`, () => {
+                withStatic(h, s, s => {
+                    s.status = Status.Loading;
+                });
+            }));
 
             s.fetch().then(v => {
-                s.status = Status.Loaded;
-                s.value  = v;
+                modifyHandle(h, mkAction(`resolveStatic(${s.ns}, ${s.key})`, () => {
+                    withStatic(h, s, s => {
+                        s.status = Status.Loaded;
+                        s.value  = v;
+                    });
+                }));
 
             }).catch(err => {
-                s.status = Status.Failed;
-
-            }).then(() => {
-                startNextGeneration(h);
+                modifyHandle(h, mkAction(`staticFail(${s.ns}, ${s.key})`, () => {
+                    withStatic(h, s, s => {
+                        s.status = Status.Failed;
+                    });
+                }));
             });
         }
     }
@@ -810,19 +912,11 @@ module Avers {
 
     function
     mkPatch(h: Handle, objectId: string, revId: number): Static<Patch> {
-        let key = objectId + '@' + revId
-          , s   = h.patchCache.get(key);
+        let key = objectId + '@' + revId;
 
-        if (!s) {
-            s = new Static<Patch>(() => {
-                return fetchPatch(h, objectId, revId);
-            });
-
-            h.patchCache.set(key, s);
-            startNextGeneration(h);
-        }
-
-        return s;
+        return mkStatic<Patch>(h, aversNamespace, key, () => {
+            return fetchPatch(h, objectId, revId);
+        });
     }
 
 
