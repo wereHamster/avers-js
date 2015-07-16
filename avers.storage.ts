@@ -16,6 +16,49 @@
 
 module Avers {
 
+
+    // ---
+    // Object.assign polyfill
+
+    let propIsEnumerable = Object.prototype.propertyIsEnumerable;
+
+    function ToObject(val) {
+        if (val == null) {
+            throw new TypeError('Object.assign cannot be called with null or undefined');
+        } else {
+            return Object(val);
+        }
+    }
+
+    function ownEnumerableKeys(obj) {
+        let keys: any[] = Object.getOwnPropertyNames(obj);
+
+        if (Object.getOwnPropertySymbols) {
+            keys = keys.concat(Object.getOwnPropertySymbols(obj));
+        }
+
+        return keys.filter(key => {
+            return propIsEnumerable.call(obj, key);
+        });
+    }
+
+    function assign(target, source) {
+        let to = ToObject(target);
+
+        for (let s = 1; s < arguments.length; s++) {
+            let from = arguments[s]
+              , keys = ownEnumerableKeys(Object(from));
+
+            for (let i = 0; i < keys.length; i++) {
+                to[keys[i]] = from[keys[i]];
+            }
+        }
+
+        return to;
+    }
+
+    // ---
+
     const aversNamespace = Symbol('aversNamespace');
 
 
@@ -187,8 +230,6 @@ module Avers {
         if (!obj) {
             obj = new Editable<T>(id);
             h.objectCache.set(id, obj);
-
-            loadEditable(h, obj);
         }
 
         return obj;
@@ -207,7 +248,12 @@ module Avers {
             if (id) {
                 let obj = mkEditable<T>(h, id);
                 if (!obj.content) {
+                    if (obj.networkRequest === undefined) {
+                        loadEditable(h, obj);
+                    }
+
                     return <Editable<T>> Computation.Pending;
+
                 } else {
                     return obj;
                 }
@@ -354,6 +400,28 @@ module Avers {
 
 
 
+    // updateEditable
+    // -----------------------------------------------------------------------
+    //
+    // A non-destructive update of an 'Editable'. The callback is given a copy
+    // of the original and can set any properties on it. The copy is then
+    // inserted into the cache.
+    //
+    // If the 'Editable' doesn't exist in the cache then it is created.
+    //
+    // TODO: Freeze the object before putting it into the cache.
+
+    function updateEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void):void {
+        let obj  = mkEditable(h, objId)
+          , copy = assign(new Editable(objId), obj);
+
+        f(copy);
+
+        h.objectCache.set(objId, copy);
+    }
+
+
+
     // IEntity
     // -----------------------------------------------------------------------
     //
@@ -432,7 +500,7 @@ module Avers {
         return runNetworkRequest(h, obj, modifyE, fetchObject(h, objId)).then(res => {
             let e = lookupE(h, obj);
             if (e && e.networkRequest === res.networkRequest) {
-                resolveEditable<T>(h, obj, res.res);
+                resolveEditable<T>(h, objId, res.res);
             }
         });
     }
@@ -510,26 +578,41 @@ module Avers {
         Avers.attachChangeListener(obj.content, mkChangeListener(h, obj));
     }
 
-    function
-    resolveEditable<T>(h: Handle, obj: Editable<T>, body): void {
-        modifyHandle(h, mkAction(`resolveEditable(${obj.objectId})`, h => {
-            withEditable(h, obj.objectId, obj => {
+
+
+    // resolveEditable
+    // -----------------------------------------------------------------------
+    //
+    // Given a response from the server, initialize an 'Editable' with the data.
+    //
+    // Note that this will invalidate any currently running network requests and
+    // drop any local changes.
+
+    export function
+    resolveEditable<T>(h: Handle, objId: string, json): void {
+        modifyHandle(h, mkAction(`resolveEditable(${objId})`, h => {
+            updateEditable(h, objId, obj => {
                 obj.networkRequest = undefined;
+                obj.lastError      = undefined;
 
-                obj.type           = body.type;
-                obj.objectId       = body.id;
-                obj.createdAt      = new Date(Date.parse(body.createdAt));
-                obj.createdBy      = body.createdBy;
-                obj.revisionId     = body.revisionId || 0;
+                obj.type           = json.type;
+                obj.objectId       = json.id;
+                obj.createdAt      = new Date(Date.parse(json.createdAt));
+                obj.createdBy      = json.createdBy;
+                obj.revisionId     = json.revisionId || 0;
 
-                obj.shadowContent  = Avers.parseJSON<T>(h.infoTable.get(obj.type), body.content);
+                obj.shadowContent  = Avers.parseJSON<T>(h.infoTable.get(obj.type), json.content);
                 Avers.deliverChangeRecords(obj.shadowContent);
+
+                obj.submittedChanges = [];
+                obj.localChanges     = [];
 
                 initContent(h, obj);
                 Avers.migrateObject(obj.content);
             });
         }));
     }
+
 
 
     function
