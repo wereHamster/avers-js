@@ -264,37 +264,41 @@ module Avers {
 
 
 
-    export enum Status { Empty, Loading, Loaded, Failed }
+    // TODO: Consider defining a sumtype so we can store additional data along
+    // with the `Failed` status.
+    export enum Status { Empty, Loaded, Failed }
 
-    function debounce(func, wait, immediate = undefined) {
+
+
+    function debounce<T extends Function>(func: T, wait, immediate = undefined): T {
         let timeout, args, context, timestamp, result;
 
         let later = function() {
-        let last = Date.now() - timestamp;
+            let last = Date.now() - timestamp;
 
-        if (last < wait && last >= 0) {
-            timeout = setTimeout(later, wait - last);
-        } else {
-            timeout = null;
-            if (!immediate) {
-            result = func.apply(context, args);
-            if (!timeout) { context = args = null; };
+            if (last < wait && last >= 0) {
+                timeout = setTimeout(later, wait - last);
+            } else {
+                timeout = null;
+                if (!immediate) {
+                    result = func.apply(context, args);
+                    if (!timeout) { context = args = null; };
+                }
             }
-        }
         };
 
-        return function() {
-        context = this;
-        args = arguments;
-        timestamp = Date.now();
-        let callNow = immediate && !timeout;
-        if (!timeout) { timeout = setTimeout(later, wait); };
-        if (callNow) {
-            result = func.apply(context, args);
-            context = args = null;
-        }
+        return <any> function() {
+            context = this;
+            args = arguments;
+            timestamp = Date.now();
+            let callNow = immediate && !timeout;
+            if (!timeout) { timeout = setTimeout(later, wait); };
+            if (callNow) {
+                result = func.apply(context, args);
+                context = args = null;
+            }
 
-        return result;
+            return result;
         };
     }
 
@@ -357,31 +361,58 @@ module Avers {
     }
 
 
+
+    // IEntity
+    // -----------------------------------------------------------------------
+    //
+    // Our uniform representation of an object that can be fetched or
+    // synchronized with the server.
+
+    interface IEntity {
+        status         : Status;
+        networkRequest : NetworkRequest;
+    }
+
+    // The concrete implementations which are managed by the 'Handle'.
+    type Entity = Editable<any> | Static<any>;
+
+
+    function lookupE<T>(h: Handle, e: Entity): Entity {
+        if (e instanceof Editable) {
+            return h.objectCache.get(e.objectId);
+        } else if (e instanceof Static) {
+            return lookupStatic<T>(h, e.ns, e.key);
+        }
+    }
+
+
+
     // runNetworkRequest
     // -----------------------------------------------------------------------
     //
-    // Run a network request attached to the given 'Editable'. This overwrites
-    // (invalidates) any currently running request. The callback is invoked
-    // only when the request is still valid.
-    //
-    // Note: The callback MUST NOT throw exceptions.
+    // Run a network request attached to the given 'Entity'. This overwrites
+    // (invalidates) any currently running request. The promise is resolved only
+    // when the request is still valid. That is when you can handle the response
+    // and apply changes to the Handle.
 
     function
     runNetworkRequest<T, R>
-    ( h   : Handle
-    , obj : Editable<T>
-    , req : Promise<R>
+    ( h       : Handle
+    , entity  : Entity
+    , modifyE : (h: Handle, f: (e: Entity) => void) => void
+    , req     : Promise<R>
     ): Promise<R> {
         let nr = new NetworkRequest(h.now(), req);
 
-        modifyHandle(h, mkAction(`attachNetworkRequest(${obj.objectId})`, h => {
-            withEditable(h, obj.objectId, obj => { obj.networkRequest = nr; });
+        modifyHandle(h, mkAction(`attachNetworkRequest()`, h => {
+            modifyE(h, e => { e.networkRequest = nr; });
         }));
 
         return req.then(res => {
-            if (obj.networkRequest === nr) {
-                modifyHandle(h, mkAction(`clearNetworkRequest(${obj.objectId})`, h => {
-                    withEditable(h, obj.objectId, obj => { obj.networkRequest = undefined; });
+            let e = lookupE(h, entity);
+            if (e && e.networkRequest === nr) {
+                modifyHandle(h, mkAction(`clearNetworkRequest()`, h => {
+                    modifyE(h, e => { e.networkRequest = undefined; });
                 }));
 
                 return res;
@@ -399,24 +430,22 @@ module Avers {
     // Fetch an object from the server and initialize the Editable with the
     // response.
 
-    function setEditableStatusA(objId: string, status: Status): Action {
-        function applyF(h: Handle) {
-            withEditable(h, objId, obj => { obj.status = Status.Loading; });
-        }
-
-        return { label: `setEditableStatus(${objId}, ${Status[status]})`, applyF };
-    }
-
     export function
     loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
-        modifyHandle(h, setEditableStatusA(obj.objectId, Status.Loading));
+        let objId = obj.objectId;
 
-        return runNetworkRequest(h, obj, fetchObject(h, obj.objectId)).then(json => {
-            try {
-                resolveEditable<T>(h, obj, json);
-            } catch(e) {
-                modifyHandle(h, setEditableStatusA(obj.objectId, Status.Failed));
-            }
+        function modifyE(h, f) {
+            withEditable(h, objId, f);
+        }
+
+        return runNetworkRequest(h, obj, modifyE, fetchObject(h, objId)).then(json => {
+            resolveEditable<T>(h, obj, json);
+        }).catch(e => {
+            modifyHandle(h, mkAction(`loadFailed(EditableE(${obj.objectId}))`, h => {
+                withEditable(h, objId, obj => { obj.status = Status.Failed; });
+            }));
+
+            throw e;
         });
     }
 
@@ -525,9 +554,11 @@ module Avers {
         return function onChange(changes: Avers.Change<any>[]): void {
             let ops = changes.map(Avers.changeOperation);
 
-            modifyHandle(h, mkAction(`localChanges(${obj.objectId},${ops.length})`, h => {
-                obj.localChanges = obj.localChanges.concat(ops);
-                initContent(h, obj);
+            modifyHandle(h, mkAction(`captureChanges(${obj.objectId},${ops.length})`, h => {
+                withEditable(h, obj.objectId, obj => {
+                    obj.localChanges = obj.localChanges.concat(ops);
+                    initContent(h, obj);
+                });
             }));
 
             save(h, obj);
@@ -537,6 +568,8 @@ module Avers {
 
     export function
     saveEditable<T>(h: Handle, obj: Editable<T>): void {
+        let objId = obj.objectId;
+
         // ASSERT obj.status === Status.Loaded
 
         // Guard on not having a request in flight. If this editable has any
@@ -578,7 +611,11 @@ module Avers {
             }
         });
 
-        runNetworkRequest(h, obj, req).then(body => {
+        function modifyE(h, f) {
+            withEditable(h, objId, f);
+        }
+
+        runNetworkRequest(h, obj, modifyE, req).then(body => {
             console.log(
                 [ 'Saved '
                 , body.resultingPatches.length
@@ -596,6 +633,12 @@ module Avers {
             // reflect what the server has.
 
             modifyHandle(h, mkAction(`applyServerResponse(${obj.objectId})`, h => {
+                // Clear out any traces that we've submitted changes to the
+                // server.
+                obj.submittedChanges = [];
+
+
+                // Apply patches which the server sent us to the shadow content.
                 let serverPatches = [].concat(body.previousPatches, body.resultingPatches);
 
                 obj.revisionId += serverPatches.length;
@@ -605,23 +648,8 @@ module Avers {
                 });
 
 
-                // Clone the server version and apply any local changes which the
-                // client has created since submitting.
-                obj.content = Avers.clone(obj.shadowContent);
-                obj.localChanges.forEach(op => {
-                    Avers.applyOperation(obj.content, op.path, op);
-                });
-
-
-                // Flush change records and attach a change listener to the new
-                // content.
-                Avers.deliverChangeRecords(obj.content);
-                Avers.attachChangeListener(obj.content, mkChangeListener(h, obj));
-
-
-                // Clear out any traces that we've submitted changes to the
-                // server.
-                obj.submittedChanges = [];
+                // Re-initialize the local content.
+                initContent(h, obj);
             }));
 
             // See if we have any more local changes which we need to save.
@@ -764,8 +792,9 @@ module Avers {
 
     export class Static<T> {
 
-        status : Status = Status.Empty;
-        value  : T      = undefined;
+        status         : Status         = Status.Empty;
+        networkRequest : NetworkRequest = undefined;
+        value          : T              = undefined;
 
         constructor
           ( public ns    : Symbol
@@ -846,14 +875,10 @@ module Avers {
 
     function
     loadStatic<T>(h: Handle, s: Static<T>): void {
-        if (s.status === Status.Empty) {
-            modifyHandle(h, mkAction(`loadStatic(${s.ns}, ${s.key})`, () => {
-                withStatic(h, s, s => {
-                    s.status = Status.Loading;
-                });
-            }));
+        if (s.status === Status.Empty && s.networkRequest === undefined) {
 
-            s.fetch().then(v => {
+            function modifyE(h, f) { withStatic(h, s, f); }
+            runNetworkRequest(h, s, modifyE, s.fetch()).then(v => {
                 modifyHandle(h, mkAction(`resolveStatic(${s.ns}, ${s.key})`, () => {
                     withStatic(h, s, s => {
                         s.status = Status.Loaded;
@@ -862,7 +887,7 @@ module Avers {
                 }));
 
             }).catch(err => {
-                modifyHandle(h, mkAction(`staticFail(${s.ns}, ${s.key})`, () => {
+                modifyHandle(h, mkAction(`loadFailed(StaticE(${s.ns}, ${s.key}))`, () => {
                     withStatic(h, s, s => {
                         s.status = Status.Failed;
                     });
