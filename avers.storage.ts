@@ -224,7 +224,7 @@ module Avers {
     // object is cached in the handle, so it is safe to call this function
     // repeatedly with the same id.
 
-    function
+    export function
     mkEditable<T>(h: Handle, id: string): Editable<T> {
         let obj = h.objectCache.get(id);
         if (!obj) {
