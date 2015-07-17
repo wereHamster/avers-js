@@ -35,7 +35,7 @@ var unknownAuthor = Avers.mk(Author, {
 class Book {
     title  : string;
     author : Author;
-    tags   : string;
+    tags   : string[];
 }
 
 var jsonBook = {
@@ -317,6 +317,51 @@ describe('Avers.resolvePath', function() {
 
         (<any>library.items).something = '42';
         assert.isUndefined(Avers.resolvePath(library.items, 'something'));
+    });
+});
+
+describe('Avers.applyOperation', function() {
+
+    function run(op, f) {
+        let orig = Avers.mk(Book, jsonBook)
+          , copy = Avers.applyOperation(orig, op.path, op);
+
+        f(orig, copy);
+    }
+
+    describe('set', function() {
+        function mkOp(path, value) {
+            return { type: 'set', path, value };
+        }
+
+        it('should return a copy of the object if some property was changed', function() {
+            run(mkOp('title', 'A Song of Ice and Fire'), (orig, copy) => {
+                assert.notEqual(orig, copy);
+            });
+        });
+        it.skip('should return a the same object if no changes were needed', function() {
+            run(mkOp('title', jsonBook.title), (orig, copy) => {
+                assert.equal(orig, copy);
+            });
+        });
+    });
+    describe('splice', function() {
+        function mkOp(path, index, remove, insert) {
+            return { type: 'splice', path, index, remove, insert };
+        }
+
+        it('should return a copy of the object if some property was changed', function() {
+            let lib  = Avers.mk(Library, {});
+            let copy = Avers.applyOperation(lib, 'items', mkOp('items', 0, 0, [jsonBookItemWithId]));
+
+            assert.notEqual(lib, copy);
+        });
+        it.skip('should return a the same object if no changes were needed', function() {
+            let lib  = Avers.mk(Library, {});
+            let copy = Avers.applyOperation(lib, 'items', mkOp('items', 0, 0, []));
+
+            assert.equal(lib, copy);
+        });
     });
 });
 
