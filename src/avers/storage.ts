@@ -15,7 +15,7 @@
 
 import Computation from 'computation';
 
-import { clone, applyOperation, Operation, deliverChangeRecords, Change,
+import { applyOperation, Operation, deliverChangeRecords, Change,
     changeOperation, parseJSON, migrateObject, attachChangeListener } from './core';
 
 
@@ -45,7 +45,7 @@ function ownEnumerableKeys(obj) {
     });
 }
 
-function assign(target, source) {
+function assign(target, ...source) {
     let to = ToObject(target);
 
     for (let s = 1; s < arguments.length; s++) {
@@ -586,11 +586,9 @@ deleteObject(h: Handle, id: string): Promise<void> {
 }
 
 function initContent(h: Handle, obj: Editable<any>): void {
-    obj.content = clone(obj.shadowContent);
-
-    [].concat(obj.submittedChanges, obj.localChanges).forEach(o => {
-        obj.content = applyOperation(obj.content, o.path, o);
-    });
+    obj.content = [].concat(obj.submittedChanges, obj.localChanges).reduce((c, o) => {
+        return applyOperation(c, o.path, o);
+    }, obj.shadowContent);
 
     deliverChangeRecords(obj.content);
     attachChangeListener(obj.content, mkChangeListener(h, obj));
@@ -744,10 +742,10 @@ saveEditable<T>(h: Handle, obj: Editable<T>): void {
                 let serverPatches = [].concat(body.previousPatches, body.resultingPatches);
 
                 obj.revisionId += serverPatches.length;
-                serverPatches.forEach(patch => {
+                obj.shadowContent = serverPatches.reduce((c, patch) => {
                     let op = patch.operation;
-                    obj.shadowContent = applyOperation(obj.shadowContent, op.path, op);
-                });
+                    return applyOperation(c, op.path, op);
+                }, obj.shadowContent);
 
 
                 // Re-initialize the local content.

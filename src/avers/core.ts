@@ -151,7 +151,7 @@ function setValueAtPath(root, path: string, value): any {
 
     obj[lastKey] = clone(value);
 
-    return clone(root);
+    return root;
 }
 
 function parentPath(path: string): string {
@@ -174,7 +174,7 @@ function applySpliceOperation(root, path: string, op: Operation): any {
 
     splice.apply(obj, args);
 
-    return clone(root);
+    return root;
 }
 
 
@@ -188,8 +188,8 @@ function applySpliceOperation(root, path: string, op: Operation): any {
 export function
 applyOperation(root, path: string, op: Operation): void {
     switch (op.type) {
-    case 'set'    : return setValueAtPath(root, path, op.value);
-    case 'splice' : return applySpliceOperation(root, path, op);
+    case 'set'    : return setValueAtPath(clone(root), path, op.value);
+    case 'splice' : return applySpliceOperation(clone(root), path, op);
     }
 }
 
