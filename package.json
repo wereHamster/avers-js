@@ -9,12 +9,9 @@
   "devDependencies": {
     "babel": "*",
     "chai": "*",
-    "event-stream": "^3.3.1",
     "gulp": "^3.9.0",
     "gulp-babel": "^5.1.0",
     "gulp-browserify": "^0.5.1",
-    "gulp-concat": "^2.6.0",
-    "gulp-replace": "^0.5.3",
     "gulp-tslint": "3.1.1-beta",
     "gulp-typescript": "^2.7.8",
     "mocha": "*",

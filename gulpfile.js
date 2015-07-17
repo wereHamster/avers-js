@@ -2,10 +2,7 @@ var gulp       = require('gulp')
   , ts         = require('gulp-typescript')
   , tslint     = require('gulp-tslint')
   , babel      = require('gulp-babel')
-  , concat     = require('gulp-concat')
   , browserify = require('gulp-browserify')
-  , es         = require('event-stream')
-  , replace    = require('gulp-replace')
   ;
 
 
