@@ -396,9 +396,10 @@ export class Editable<T> {
 }
 
 
-function withEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void):void {
+function
+withEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void): void {
     let obj = h.objectCache.get(objId);
-    if (obj) { f(obj); }
+    if (obj) { applyEditableChanges(h, obj, f); }
 }
 
 
@@ -411,16 +412,31 @@ function withEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void)
 // inserted into the cache.
 //
 // If the 'Editable' doesn't exist in the cache then it is created.
+
+function
+updateEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void): void {
+    let obj = mkEditable(h, objId);
+    applyEditableChanges(h, obj, f);
+}
+
+
+
+// applyEditableChanges
+// -----------------------------------------------------------------------
+//
+// Create a copy of the given 'Editable', apply the function on it, and insert
+// the new copy into the cache, overwriting the previous object.
 //
 // TODO: Freeze the object before putting it into the cache.
 
-function updateEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void):void {
-    let obj  = mkEditable(h, objId)
-      , copy = assign(new Editable(objId), obj);
+function
+applyEditableChanges(h: Handle, obj: Editable<any>, f: (obj: Editable<any>) => void): void {
+    let copy = assign(new Editable(obj.objectId), obj);
 
     f(copy);
+    // Object.freeze(obj);
 
-    h.objectCache.set(objId, copy);
+    h.objectCache.set(obj.objectId, copy);
 }
 
 
