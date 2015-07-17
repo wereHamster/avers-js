@@ -3,7 +3,7 @@
 set -e
 
 npm install
-./node_modules/.bin/tslint -f avers.ts -f avers.storage.ts
-./node_modules/.bin/tsc --target ES6 --out test.js.tmp test.ts
-./node_modules/.bin/babel test.js.tmp > test.js
+
+./node_modules/.bin/gulp lint ||:
+./node_modules/.bin/gulp test
 ./node_modules/.bin/mocha test.js

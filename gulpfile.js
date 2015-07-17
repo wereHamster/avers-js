@@ -6,7 +6,6 @@ var gulp       = require('gulp')
   , browserify = require('gulp-browserify')
   , es         = require('event-stream')
   , replace    = require('gulp-replace')
-  , babelify   = require('babelify')
   ;
 
 
