@@ -11,18 +11,6 @@ function result(object, property: string) {
     }
 }
 
-const hasProp = {}.hasOwnProperty;
-function extend(obj, ...args) {
-    args.forEach(function(source) {
-        for (let prop in source) {
-            if (hasProp.call(source, prop)) {
-                obj[prop] = source[prop];
-            }
-        }
-    });
-
-    return obj;
-}
 
 
 // changeCallbackSymbol
@@ -113,7 +101,11 @@ function aversProperties(obj): AversProperties {
 }
 
 function withId(json, obj) {
-    return extend(obj, json.id === undefined ? {} : { id: json.id });
+    if (json.id !== undefined) {
+        obj.id = json.id;
+    }
+
+    return obj;
 }
 
 function descendInto(obj, key: string) {
