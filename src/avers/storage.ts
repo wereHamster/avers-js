@@ -232,7 +232,7 @@ mkEditable<T>(h: Handle, id: string): Editable<T> {
     let obj = h.objectCache.get(id);
     if (!obj) {
         obj = new Editable<T>(id);
-        h.objectCache.set(id, obj);
+        h.objectCache.set(id, Object.freeze(obj));
     }
 
     return obj;
@@ -434,9 +434,8 @@ applyEditableChanges(h: Handle, obj: Editable<any>, f: (obj: Editable<any>) => v
     let copy = assign(new Editable(obj.objectId), obj);
 
     f(copy);
-    // Object.freeze(obj);
 
-    h.objectCache.set(obj.objectId, copy);
+    h.objectCache.set(obj.objectId, Object.freeze(copy));
 }
 
 
