@@ -15,7 +15,7 @@
     "gulp-browserify": "^0.5.1",
     "gulp-concat": "^2.6.0",
     "gulp-replace": "^0.5.3",
-    "gulp-tslint": "^2.0.0",
+    "gulp-tslint": "3.1.1-beta",
     "gulp-typescript": "^2.7.8",
     "mocha": "*",
     "serve": "*",
