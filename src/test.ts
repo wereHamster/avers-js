@@ -1,15 +1,12 @@
-/// <reference path="./ext/mocha.d.ts" />
-/// <reference path="./ext/computation.ts" />
+/// <reference path="../ext/mocha.d.ts" />
 
-/// <reference path="./avers.ts" />
-/// <reference path="./avers.storage.ts" />
-/// <reference path="./avers.session.ts" />
+import * as Avers from 'avers';
 
 
 declare var chai, require, process;
 var assert;
 try {
-    assert = require('./node_modules/chai/chai.js').assert;
+    assert = require('chai').assert;
 } catch (e) {
     assert = chai.assert;
 }
