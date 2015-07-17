@@ -589,7 +589,7 @@ function initContent(h: Handle, obj: Editable<any>): void {
     obj.content = clone(obj.shadowContent);
 
     [].concat(obj.submittedChanges, obj.localChanges).forEach(o => {
-        applyOperation(obj.content, o.path, o);
+        obj.content = applyOperation(obj.content, o.path, o);
     });
 
     deliverChangeRecords(obj.content);
@@ -746,7 +746,7 @@ saveEditable<T>(h: Handle, obj: Editable<T>): void {
                 obj.revisionId += serverPatches.length;
                 serverPatches.forEach(patch => {
                     let op = patch.operation;
-                    applyOperation(obj.shadowContent, op.path, op);
+                    obj.shadowContent = applyOperation(obj.shadowContent, op.path, op);
                 });
 
 

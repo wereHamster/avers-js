@@ -144,12 +144,14 @@ clone(x: any): any {
     }
 }
 
-function setValueAtPath(root, path: string, value): void {
+function setValueAtPath(root, path: string, value): any {
     let pathKeys = path.split('.')
       , lastKey  = pathKeys.pop()
       , obj      = resolvePath<any>(root, pathKeys.join('.'));
 
     obj[lastKey] = clone(value);
+
+    return clone(root);
 }
 
 function parentPath(path: string): string {
@@ -163,7 +165,7 @@ function last<T>(xs: T[]): T {
 
 // Splice operations can currently not be applied to the root. This is
 // a restriction which may be lifted in the future.
-function applySpliceOperation(root, path: string, op: Operation): void {
+function applySpliceOperation(root, path: string, op: Operation): any {
     let obj    = resolvePath<any>(root, path)
       , parent = resolvePath<any>(root, parentPath(path))
       , prop   = aversProperties(parent)[last(path.split('.'))]
@@ -171,6 +173,8 @@ function applySpliceOperation(root, path: string, op: Operation): void {
       , args   = [ op.index, op.remove ].concat(insert);
 
     splice.apply(obj, args);
+
+    return clone(root);
 }
 
 
