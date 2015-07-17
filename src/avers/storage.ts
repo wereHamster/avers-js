@@ -17,7 +17,8 @@ import Computation from 'computation';
 
 import {assign} from './shared';
 import { applyOperation, Operation, deliverChangeRecords, Change,
-    changeOperation, parseJSON, migrateObject, attachChangeListener } from './core';
+    changeOperation, parseJSON, migrateObject, attachChangeListener,
+    detachChangeListener } from './core';
 
 
 
@@ -346,6 +347,7 @@ export class Editable<T> {
 
 
     content          : T;
+    changeListener   : any;
 
     submittedChanges : Operation[] = [];
     localChanges     : Operation[] = [];
@@ -545,12 +547,18 @@ deleteObject(h: Handle, id: string): Promise<void> {
 }
 
 function initContent(h: Handle, obj: Editable<any>): void {
+    if (obj.content && obj.changeListener) {
+        detachChangeListener(obj.content, obj.changeListener);
+    }
+
     obj.content = [].concat(obj.submittedChanges, obj.localChanges).reduce((c, o) => {
         return applyOperation(c, o.path, o);
     }, obj.shadowContent);
 
     deliverChangeRecords(obj.content);
-    attachChangeListener(obj.content, mkChangeListener(h, obj));
+
+    obj.changeListener = mkChangeListener(h, obj);
+    attachChangeListener(obj.content, obj.changeListener);
 }
 
 
