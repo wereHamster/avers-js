@@ -19,9 +19,9 @@
         , "check-else"
         ]
     , "semicolon": true
+    , "no-empty": true
+    , "class-name": true
 
-    , "no-empty": false
-    , "class-name": false
     , "no-any": false
     , "variable-name": false
     }
