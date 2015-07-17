@@ -3,7 +3,7 @@
 import * as Avers from './avers';
 
 
-declare var chai, require, process;
+declare var chai, require;
 var assert;
 try {
     assert = require('chai').assert;
@@ -61,10 +61,12 @@ class Magazine {
     publisher : string;
 }
 
+/*
 var jsonMagazine = {
     title: 'Vouge',
     publisher: 'Condé Nast'
 };
+*/
 
 Avers.definePrimitive(Magazine, 'title');
 Avers.definePrimitive(Magazine, 'publisher');

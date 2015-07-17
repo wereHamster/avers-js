@@ -1,10 +1,5 @@
 const splice = Array.prototype.splice;
 
-let idCounter = 0;
-function uniqueId(prefix: string): string {
-    return prefix + (++idCounter);
-}
-
 function result(object, property: string) {
     if (object != null) {
         let value = object[property];
