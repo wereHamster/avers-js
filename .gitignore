@@ -1,5 +1,4 @@
 node_modules/
+dist/
 avers.js
-avers.stoage.js
 test.js
-test.js.tmp
