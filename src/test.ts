@@ -128,6 +128,7 @@ function mkHandle(json) {
 
     let infoTable = new Map<string, Avers.ObjectConstructor<any>>();
     infoTable.set('library', Library);
+    infoTable.set('book', Book);
 
     return new Avers.Handle('/api', fetch, now, infoTable);
 }
@@ -145,6 +146,13 @@ const libraryObjectResponse =
     , content   : {}
     };
 
+const bookObjectResponse =
+    { type      : 'book'
+    , id        : 'id'
+    , createdAt : new Date().toISOString()
+    , createdBy : 'me'
+    , content   : jsonBook
+    };
 
 
 describe('Avers.parseJSON', function() {
@@ -443,6 +451,53 @@ describe('Avers.lookupEditable', function() {
             var obj = Avers.lookupEditable(h, 'id').get(sentinel);
             assert.instanceOf(obj, Avers.Editable);
             assert.instanceOf(obj.content, Library);
+            done();
+        }, 10);
+    });
+    it('should return a copy when its content changes', function() {
+        let h = mkHandle({});
+
+        let obj = Avers.mkEditable(h, 'id');
+        assert.isUndefined(obj.content);
+
+        Avers.resolveEditable(h, 'id', libraryObjectResponse);
+        let copy = Avers.mkEditable(h, 'id');
+
+        assert.instanceOf(copy, Avers.Editable);
+        assert.instanceOf(copy.content, Library);
+
+        assert.notEqual(obj, copy);
+    });
+});
+
+describe('registering changes on an Editable', function() {
+    it('should make a copy of the content', function(done) {
+        let h = mkHandle({});
+
+        Avers.resolveEditable(h, 'id', libraryObjectResponse);
+        let obj = Avers.mkEditable<Library>(h, 'id');
+
+        assert.instanceOf(obj.content, Library);
+        obj.content.items.push(Avers.mk(Item, jsonBookItemWithId));
+
+        setTimeout(() => {
+            let copy = Avers.mkEditable<Library>(h, 'id');
+            assert.instanceOf(copy.content, Library);
+            assert.notEqual(obj.content, copy.content);
+            done();
+        }, 10);
+    });
+    it.skip('should preserve objects not in the change path', function(done) {
+        let h = mkHandle({});
+        Avers.resolveEditable(h, 'id', bookObjectResponse);
+
+        let obj = Avers.mkEditable<Book>(h, 'id');
+        obj.content.title = 'A Song of Ice and Fire';
+
+        setTimeout(() => {
+            let copy = Avers.mkEditable<Book>(h, 'id');
+            assert.notEqual(obj.content, copy.content, 'content');
+            assert.equal(obj.content.author, copy.content.author, 'content.author');
             done();
         }, 10);
     });
