@@ -1,4 +1,4 @@
-import { Handle, startNextGeneration, endpointUrl } from 'avers/storage';
+import { Handle, startNextGeneration, endpointUrl } from './storage';
 
 
 export enum SessionStatus

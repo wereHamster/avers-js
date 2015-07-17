@@ -16,7 +16,7 @@
 import Computation from 'computation';
 
 import { clone, applyOperation, Operation, deliverChangeRecords, Change,
-    changeOperation, parseJSON, migrateObject, attachChangeListener } from 'avers/core';
+    changeOperation, parseJSON, migrateObject, attachChangeListener } from './core';
 
 
 

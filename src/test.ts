@@ -1,6 +1,6 @@
 /// <reference path="../ext/mocha.d.ts" />
 
-import * as Avers from 'avers';
+import * as Avers from './avers';
 
 
 declare var chai, require, process;
