@@ -557,7 +557,7 @@ function initContent(h: Handle, obj: Editable<any>): void {
 
     deliverChangeRecords(obj.content);
 
-    obj.changeListener = mkChangeListener(h, obj);
+    obj.changeListener = mkChangeListener(h, obj.objectId);
     attachChangeListener(obj.content, obj.changeListener);
 }
 
@@ -599,30 +599,28 @@ resolveEditable<T>(h: Handle, objId: string, json): void {
 
 
 function
-mkChangeListener<T>
-( h   : Handle
-, obj : Editable<T>
-): (changes: Change<any>[]) => void {
+mkChangeListener<T>(h: Handle, objId: string): (changes: Change<any>[]) => void {
     let save: any = debounce(saveEditable, 1500);
 
     return function onChange(changes: Change<any>[]): void {
         let ops = changes.map(changeOperation);
 
-        modifyHandle(h, mkAction(`captureChanges(${obj.objectId},${ops.length})`, h => {
-            withEditable(h, obj.objectId, obj => {
+        modifyHandle(h, mkAction(`captureChanges(${objId},${ops.length})`, h => {
+            withEditable(h, objId, obj => {
                 obj.localChanges = obj.localChanges.concat(ops);
                 initContent(h, obj);
             });
         }));
 
-        save(h, obj);
+        save(h, objId);
     };
 }
 
 
-export function
-saveEditable<T>(h: Handle, obj: Editable<T>): void {
-    let objId = obj.objectId;
+function
+saveEditable(h: Handle, objId: string): void {
+    let obj = h.objectCache.get(objId);
+    if (!obj) { return; }
 
     // ASSERT obj.status === Status.Loaded
 
@@ -656,7 +654,7 @@ saveEditable<T>(h: Handle, obj: Editable<T>): void {
     }));
 
 
-    let url = endpointUrl(h, '/objects/' + obj.objectId);
+    let url = endpointUrl(h, '/objects/' + objId);
     let req = h.fetch(url, { credentials: 'include', method: 'PATCH', body: data }).then(res => {
         if (res.status === 200) {
             return res.json();
@@ -682,7 +680,7 @@ saveEditable<T>(h: Handle, obj: Editable<T>): void {
             [ 'Saved '
             , body.resultingPatches.length
             , ' operations on '
-            , obj.objectId
+            , objId
             , ' ('
             , body.previousPatches.length
             , ' previous patches)'
@@ -694,7 +692,7 @@ saveEditable<T>(h: Handle, obj: Editable<T>): void {
         // to date WRT the server version. Also bump the revisionId to
         // reflect what the server has.
 
-        modifyHandle(h, mkAction(`applyServerResponse(${obj.objectId})`, h => {
+        modifyHandle(h, mkAction(`applyServerResponse(${objId})`, h => {
             withEditable(h, objId, obj => {
                 if (obj.networkRequest === res.networkRequest) {
                     obj.networkRequest = undefined;
@@ -721,7 +719,7 @@ saveEditable<T>(h: Handle, obj: Editable<T>): void {
         }));
 
         // See if we have any more local changes which we need to save.
-        saveEditable(h, obj);
+        saveEditable(h, objId);
 
     }).catch(err => {
         // The server would presumably respond with changes which
@@ -729,7 +727,7 @@ saveEditable<T>(h: Handle, obj: Editable<T>): void {
         // changes on top of that.
 
         modifyHandle(h, mkAction(`restoreLocalChanges(${obj.objectId})`, h => {
-            withEditable(h, obj.objectId, obj => {
+            withEditable(h, objId, obj => {
                 obj.localChanges     = obj.submittedChanges.concat(obj.localChanges);
                 obj.submittedChanges = [];
             });
