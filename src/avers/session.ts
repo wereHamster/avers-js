@@ -1,33 +1,10 @@
 import { Handle, startNextGeneration, endpointUrl } from './storage';
+import { assign } from './shared';
 
 
-export enum SessionStatus
-
-    { Unknown
-      // ^ The initial state of the session. The only possible action in
-      // this state is 'restoreSession'.
-      //
-      //  -> Authenticated | Anonymous | Error
-
-    , Authenticated
-      // ^ The client is authenticated against a particular ObjId.
-      //
-      //  -> Anonymous | Error
-
-    , Anonymous
-      // ^ The client is not authenticated. As such it can interact with
-      // a few selected API endpoints.
-      //
-      //  -> Authenticated | Error
-
-    , Error
-      // ^ A network request failed with an unexpected reason. For most
-      // cases this can be treated the same as 'Anonymous'. But some parts
-      // of the UI may chose to treat it differently.
-      //
-      //  -> Authenticated | Anonymous | Error
-
-    }
+export enum Transition {
+    Restore, Signin, Signup, Signout
+};
 
 
 
@@ -35,10 +12,42 @@ export class Session {
 
     constructor(public h: Handle) {}
 
-    status : SessionStatus = SessionStatus.Unknown;
-    objId  : string        = undefined;
-
+    objId      : string     = undefined;
+    transition : Transition = undefined;
+    lastError  : Error      = undefined;
 }
+
+
+function runReq(session: Session, path: string, opts = {}) {
+    let url = endpointUrl(session.h, path);
+    return session.h.fetch(url, assign({ credentials: 'include' }, opts));
+}
+
+function jsonOk(res) {
+    if (res.status >= 200 && res.status < 300) {
+        return res.json();
+    } else {
+        throw new Error('Status ' + res.status);
+    }
+}
+
+
+
+function beginTransition(session: Session, t: Transition) {
+    session.transition = t;
+    session.lastError  = undefined;
+
+    startNextGeneration(session.h);
+}
+
+function finishTransition(session: Session, objId: string, err: Error) {
+    session.objId      = objId;
+    session.transition = undefined;
+    session.lastError  = err;
+
+    startNextGeneration(session.h);
+}
+
 
 
 // restoreSession
@@ -50,21 +59,25 @@ export class Session {
 
 export function
 restoreSession(session: Session): Promise<void> {
-    let url = endpointUrl(session.h, '/session');
-    return session.h.fetch(url, { credentials: 'include' }).then(res => {
+    beginTransition(session, Transition.Restore);
+    return runReq(session, '/session').then(res => {
+
+        // We allow both 200 and 404 to be valid responses and don't set the
+        // last error in these cases.
+
         if (res.status === 200) {
             return res.json().then(json => {
-                session.status = SessionStatus.Authenticated;
-                session.objId  = json.objId;
+                finishTransition(session, json.objId, undefined);
             });
-
+        } else if (res.status === 404) {
+            finishTransition(session, undefined, undefined);
         } else {
-            session.status = SessionStatus.Anonymous;
+            throw new Error('Status ' + res.status);
         }
+
     }).catch(err => {
-        session.status = SessionStatus.Error;
-    }).then(() => {
-        startNextGeneration(session.h);
+        finishTransition(session, undefined, err);
+        throw err;
     });
 }
 
@@ -74,26 +87,27 @@ restoreSession(session: Session): Promise<void> {
 //
 // Create a new object on the server against which one can sign in. This
 // will usually be an account, if the server has such a concept.
+//
+// Note that this doesn't automatically authenticate the client. If you want
+// to continue with the just created account, you need to sign in with it.
+//
+// Also, creating a new account will not invalidate an existing session.
 
 export function
 signup(session: Session, login: string): Promise<string> {
-    let url  = endpointUrl(session.h, '/signup')
-      , body = JSON.stringify({ login: login });
+    let body = JSON.stringify({ login: login });
 
-    return session.h.fetch(url, { credentials: 'include', method: 'POST', body: body }).then(res => {
-        if (res.status === 200) {
-            return res.json().then(json => {
-                return json.objId;
-            });
+    beginTransition(session, Transition.Signup);
+    return runReq(session, '/signup', { method: 'POST', body: body }).then(jsonOk).then(json => {
 
-        } else {
-            session.status = SessionStatus.Error;
-        }
+        // Signup doesn't authenticate the client. Therefore we preserve
+        // the existing objId in the session.
+        finishTransition(session, session.objId, undefined);
+
+        return json.objId;
     }).catch(err => {
-        session.status = SessionStatus.Error;
-    }).then(objId => {
-        startNextGeneration(session.h);
-        return objId;
+        finishTransition(session, session.objId, err);
+        throw err;
     });
 }
 
@@ -106,23 +120,14 @@ signup(session: Session, login: string): Promise<string> {
 
 export function
 signin(session: Session, login: string, secret: string): Promise<void> {
-    let url  = endpointUrl(session.h, '/session')
-      , body = JSON.stringify({ login: login, secret: secret });
+    let body = JSON.stringify({ login: login, secret: secret });
 
-    return session.h.fetch(url, { credentials: 'include', method: 'POST', body: body }).then(res => {
-        if (res.status === 200) {
-            return res.json().then(json => {
-                session.status = SessionStatus.Authenticated;
-                session.objId  = json.objId;
-            });
-
-        } else {
-            session.status = SessionStatus.Error;
-        }
+    beginTransition(session, Transition.Signin);
+    return runReq(session, '/session', { method: 'POST', body: body }).then(jsonOk).then(json => {
+        finishTransition(session, json.objId, undefined);
     }).catch(err => {
-        session.status = SessionStatus.Error;
-    }).then(() => {
-        startNextGeneration(session.h);
+        finishTransition(session, undefined, err);
+        throw err;
     });
 }
 
@@ -134,17 +139,15 @@ signin(session: Session, login: string, secret: string): Promise<void> {
 
 export function
 signout(session: Session): Promise<void> {
-    let url = endpointUrl(session.h, '/session');
-    return session.h.fetch(url, { credentials: 'include', method: 'DELETE' }).then(res => {
-        if (res.status === 200) {
-            session.status = SessionStatus.Anonymous;
-            session.objId  = undefined;
+    beginTransition(session, Transition.Signout);
+    return runReq(session, '/session', { method: 'DELETE' }).then(res => {
+        if (res.status === 200 || res.status === 204) {
+            finishTransition(session, undefined, undefined);
         } else {
-            session.status = SessionStatus.Error;
+            throw new Error('Status ' + res.status);
         }
     }).catch(err => {
-        session.status = SessionStatus.Error;
-    }).then(() => {
-        startNextGeneration(session.h);
+        finishTransition(session, session.objId, err);
+        throw err;
     });
 }
