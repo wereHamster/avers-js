@@ -1,54 +1,96 @@
 Avers.js
 --------
 
-Avers is a JavaScript library which serves two purposes:
-
- - Provides a DSL to define object types and their properties. You can parse
-   JSON into these types and generate JSON from instances of these types.
-
- - Tracks changes made to these objects. The changes propagate through the
-   object hierarchy up to the root, where you can listen and act upon them.
-
-You can think of Avers as providing a better *Model* in a MVC application.
-Avers is compatible with Angular, Polymer and other web frameworks which
-expect models to be plain JavaScript objects. But it also works equally well
-with frameworks which expect immutable data.
-
-Avers is written in ES6 compatible JavaScript. It depends on some features
-which are only available in modern JavaScript runtimes. If your runtime
-doesn't provide these requirements, you'll have to load polyfills. See further
-below what Avers requires and which runtimes provide these requirements out of
-the box.
-
-The library doesn't include support for synchronizing these objects with
-a server. You are only notified of changes, how you process them is up to
-you. If you want to persist them on your server, you can serialize the whole
-object and send it over, or send only the change (which is usually very
-small). Either way, it's easy to write the code yourself by using XHR.
-
-The code is written in [TypeScript][typescript]. To use Avers in a plain
-JavaScript project, first compile `avers.ts` and then load it in your project.
-
-Weight is about 21k raw, 6k compressed (uglify or google closure compiler).
-I haven't put much effort into making the code compact, so there certainly is
-some space for improvement.
-
-## Requirements
-
-The implementation makes heavy use of modern web technologies, such as
-[Object.observe][object-observe], [Symbol][symbol], [Map][map] and [Set][set].
-It is compatible with the following runtimes out of the box:
-
- - Chrome (40+)
- - io.js (1.1.0+)
-
-On older runtimes you'll have to load a polyfill or shim.
+Avers is a JavaScript library which provides basic functionality for web
+applications which need to manage and synchronize objects with a server.
 
 
-## Example
+### Motivation
 
-First you want to define your objects and the properties they have. There are
-four types of properties:
+My main goals were:
+
+ - To have a library for the **Model** layer of an application which can be
+   fully checked by static type checkers.
+ - Reduce boilerplate when parsing JSON into proper JavaScript class instances.
+ - Abstract all synchronization between client and server behind an efficient
+   API which supports concurrent editing.
+
+Avers is written in **TypeScript**. It is composed of three parts: **Core**,
+**Storage** and **Session**.
+The **Core** provides a DSL to define object types and their properties. With
+   that information Avers can automatically parse JSON into proper class
+   instances and track changes you make to these objects.
+The **Storage** part provides an API to manage these objects and synchronize
+   them with the server.
+The **Session** part implements a simple concept of a client session.
+
+
+### Immutable data structures
+
+While I do like immutable datastructures, the current implementations have some
+serious shortcomings. All libraries which use string arrays as cursors (eg.
+Immutable.js) are impenetrable for static type checkers. Consider the following
+example which has a typo in it. Can you spot it? Well, you can't and neither can
+**TypeScript** or **Flow**.
+
+```javascript
+let a = new Immutable.Map();
+let b = a.setIn(['users',userId,'age'], 42);
+```
+
+Avers does partially embrace immutable datastructures, but hides them behind
+an imperative API. Because you have to define all object types and their
+properties, Avers can
+automatically construct cursors which are guaranteed to be correct.
+
+Modifying a property on an Avers object is a destructive operation. But those
+changes can be captured and it's up to you what you do with it. The **Storage**
+part for example applies the changes to a fresh copy, so to the outside
+it looks like the data are immutable.
+
+```javascript
+let userE = Avers.lookupEditable(aversH, '956-userid-37').get(undefined);
+if (userE) { // Editable may not be loaded yet on the client.
+    userE.content.age = 42;
+    Avers.deliverChangeRecords(userE.content);
+
+    let x = Avers.lookupEditable(aversH, '956-userid-37').get(undefined);
+    assert(userE != x);
+}
+```
+
+
+### Fully typed objects all the way down
+
+The library works particularly well in a TypeScript project. When you add full
+type annotations to your objects then the compiler can warn you when you try
+to access or modify non-existing properties. This works even for arbitrary
+deep structures.
+
+```javascript
+class Author {
+    firstName : string;
+    lastName  : string;
+}
+Avers.definePrimitive(Author, 'firstName', '');
+Avers.definePrimitive(Author, 'lastName', '');
+
+class Book {
+    title  : string;
+    author : Author;
+}
+Avers.definePrimitive(Book, 'title', '');
+Avers.defineObject(Book, 'Author', {});
+
+let book = Avers.mk<Book>(Book, {});
+book.title = 'A Song of Ice and Fire';
+book.author.firstName  = 'George';
+book.author.middleName = 'R.R.';
+book.author.lastName   = 'Martin';
+// TypeScript error: non-existing property 'middleName' on 'Author'.
+```
+
+Object properties can be of four types:
 
  - Primitive values (string, number, boolean).
  - Variant properties (also sometimes called sum types).
@@ -56,78 +98,53 @@ four types of properties:
  - Collections (arrays of Avers objects).
 
 
-```javascript
-function Author() {}
-Avers.definePrimitive(Author, 'firstName');
-Avers.definePrimitive(Author, 'lastName');
+### Requirements
 
-function Book() {}
-Avers.definePrimitive(Book, 'title');
-Avers.defineObject(Book, 'author', Author);
+The implementation makes heavy use of modern web technologies, such as
+[Object.observe][object-observe], [Symbol][symbol], [Map][map] and [Set][set].
+At this date (5015-07-18) only Chrome supports Object.observe. On other
+platforms you'll have to use polyfills.
 
-function Library() {}
-Avers.defineCollection(Library, 'books', Book);
-```
 
-Parse JSON into instances of these objects:
 
-```javascript
-var book = Avers.parseJSON
-  ( Book
-  , { title  : '1984'
-    , author :
-      { firstName : 'George'
-      , lastName  : 'Orwell'
-      }
-    }
-  );
+# Storage
 
-var library = Avers.mk(Library, {});
-library.books.push(book);
-
-assert(book instanceof Book);
-assert(library.books.length === 1);
-```
-
-Attach change listeners to the instance. Change events bubble up to the root.
-The change carries the 'path' to the changed object as well as details about
-the type of change (set or splice).
-
-```javascript
-Avers.attachChangeListener(library, function(changes) {
-    changes.forEach(function(change) {
-        console.log(change.path, change.record);
-    });
-});
-```
-
-# Avers.Storage Extension
-
-The `avers.storage.ts` file extends the `Avers` module with functionality to
+The **Storage** part implements functionality to
 manage and synchronize objects with a compliant server (one implementation is
 available as a [Haskell library][avers-haskell] library).
 
-All data is managed in a `Handle`. Initialize it with the base URL to the API
-server, the `fetch` function which is used to send out network requests, and
-a table with all object types which you want to support.
+All data is managed in a `Handle`. All IO operations are abstracted away and
+you have to supply their implementation. The `Handle` expects API compatible
+with the whatwg fetch spec for the network interaction. Access to a clock
+is also abstracted, so you can supply implementation based on `Date.now`
+or `prformance.now`, depending on accuracy requirements.
+
 
 ```javascript
-var infoTable = { book: Book };
-var h = new Avers.Handle('//api.domain.tld', fetch.bind(window), infoTable);
+let infoTable = new Map();
+infoTable.set('book', Book);
+
+let h = new Avers.Handle
+    ( '//api.domain.tld'
+    , window.fetch.bind(window)
+    , window.performance.now.bind(window.performance)
+    , infoTable
+    );
 ```
 
 The handle has a `generationNumber` property. It is a number, incremented
-every time any data managed by the handle changes. Use it to detect when you
-need to re-render the UI (eg. by using `Object.observe`).
+every time any data managed by the handle changes. You can attach a watcher to
+be notified whenever it changes, so you know when to re-render the UI.
 
-The extension defines a new type, `Editable<T>`, which wraps a top-level
+The module defines the type `Editable<T>` which wraps a top-level
 object with metadata needed for synchronization (such as whether it has been
 loaded or not, any local changes you have done to the object, or the network
 request in flight).
 
 Many of the functions return either a `Promise` or a `Computation`. For
-example to lookup an object in your react Rendering function, use
-`lookupEditable`. It returns a `Computation`, so make sure to
+example to lookup an object in your React rendering function, use
+`lookupEditable`. It returns a `Computation`, so make sure to check if the
+object has been loaded or not.
 
 ```javascript
 class BookSummary extends React.Component<P, S> {
