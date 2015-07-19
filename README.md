@@ -107,7 +107,7 @@ platforms you'll have to use polyfills.
 
 
 
-# Storage
+### Storage
 
 The **Storage** part implements functionality to
 manage and synchronize objects with a compliant server (one implementation is
@@ -141,24 +141,72 @@ object with metadata needed for synchronization (such as whether it has been
 loaded or not, any local changes you have done to the object, or the network
 request in flight).
 
-Many of the functions return either a `Promise` or a `Computation`. For
-example to lookup an object in your React rendering function, use
-`lookupEditable`. It returns a `Computation`, so make sure to check if the
-object has been loaded or not.
+
+### Integration with React
+
+Use query functions (such as `lookupEditable`, `lookupContent`, `lookupPatch`)
+to extract data from the Handle. Rendering in React must be synchronous, so
+those functions return a `Computation`. This way you are forced to handle to
+case when the object is not loaded yet or has failed loading.
+
+The data is fetched automatically in the background when you first try to
+access it. There is no need to trigger anything from the component lifecycle
+callbacks (eg. `componentDidMount`).
+
+Never compare the Avers Handle for equality to decide if you need to re-render
+a component. Though you can use strict equality comparison on an `Editable`
+or its content.
+
+
+This is a simple React component which shows the summary of a book. It
+illustrates how to extract data from the Avers Handle.
 
 ```javascript
-class BookSummary extends React.Component<P, S> {
+interface BookSummaryProps {
+    aversH : Avers.Handle;
+    bookId : string;
+}
+class BookSummary extends React.Component<BookSummaryProps, {}> {
     render() {
-        return Avers.lookupEditable<Book>(aversH, this.props.bookId).fmap(e => {
-            var book   = e.content
+        let { aversH, bookId } = this.props;
+
+        return Avers.lookupEditable<Book>(aversH, bookId).fmap(bookE => {
+            var book   = bookE.content
               , author = book.author;
 
-            return <span>{book.title} by {author.firstName} {author.lastName}</span>;
+            return (
+                <span>
+                    {book.title} by {author.firstName} {author.lastName}
+                </span>
+            );
 
-        ).get(<span>Loading book {this.props.bookId}...</span>);
+        ).get(<span>Loading book {bookId}...</span>);
     }
 }
 ```
+
+At the top level of your React application you need to wire everything up. There
+is very little boilerplate needed. Note that this minimal example doesn't
+include routing or how to store and manage data outside of the Avers Handle.
+
+```javascript
+// Create the handle early during the startup.
+let aversH = new Avers.Handle(...);
+
+// The callback you want to call whenever the UI needs to be re-rendered. Give
+// it the Avers Handle so it can access the data.
+function render() {
+    React.render(<App aversH={aversH} />, document.body);
+}
+
+// Do the initial render on application startup and install a listener on
+// the Handle to re-render the UI whenever the data changes.
+render();
+Avers.attachGenerationListener(aversH, () => {
+    render();
+});
+```
+
 
 
 
