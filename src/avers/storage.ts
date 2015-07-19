@@ -387,8 +387,6 @@ updateEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void): void 
 //
 // Create a copy of the given 'Editable', apply the function on it, and insert
 // the new copy into the cache, overwriting the previous object.
-//
-// TODO: Freeze the object before putting it into the cache.
 
 function
 applyEditableChanges(h: Handle, obj: Editable<any>, f: (obj: Editable<any>) => void): void {
