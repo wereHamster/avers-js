@@ -45,7 +45,7 @@ export class Handle {
     // ^ Incremented everytime something managed by this handle changes.
 
     objectCache    = new Map<string, Editable<any>>();
-    staticCache    = new Map<Symbol, Map<string, Static<any>>>();
+    staticCache    = new Map<Symbol, Map<string, StaticE<any>>>();
     ephemeralCache = new Map<Symbol, Map<string, EphemeralE<any>>>();
 
     constructor
@@ -408,7 +408,7 @@ interface IEntity {
 }
 
 // The concrete types of IEntity which can be managed by the 'Handle'.
-type Entity = Editable<any> | Static<any> | EphemeralE<any>;
+type Entity = Editable<any> | StaticE<any> | EphemeralE<any>;
 
 
 
@@ -856,6 +856,41 @@ export class Static<T> {
       ) {}
 }
 
+export class StaticE<T> {
+    networkRequest : NetworkRequest = undefined;
+    lastError      : Error          = undefined;
+    value          : T              = undefined;
+}
+
+
+function lookupStaticE<T>(h: Handle, ns: Symbol, key: string): StaticE<T> {
+    let n = h.staticCache.get(ns);
+    if (n) { return n.get(key); }
+}
+
+
+function insertStaticE(h: Handle, ns: Symbol, key: string, e: StaticE<any>): void {
+    let n = h.staticCache.get(ns);
+    if (!n) {
+        n = new Map<string, StaticE<any>>();
+        h.staticCache.set(ns, n);
+    }
+
+    n.set(key, Object.freeze(e));
+}
+
+
+function
+applyStaticChanges<T>(h: Handle, ns: Symbol, key: string, s: StaticE<T>, f: (s: StaticE<T>) => void): void {
+    insertStaticE(h, ns, key, immutableClone(s, f));
+}
+
+
+function withStaticE(h: Handle, ns: Symbol, key: string, f: (s: StaticE<any>) => void): void {
+    applyStaticChanges(h, ns, key, mkStaticE<any>(h, ns, key), f);
+}
+
+
 
 // mkStatic
 // -----------------------------------------------------------------------
@@ -863,26 +898,21 @@ export class Static<T> {
 // Even though this function has access to the 'Handle' and indeed modifies
 // it, the changes have has no externally observable effect.
 
-export function
-mkStatic<T>
-( h     : Handle
-, ns    : Symbol
-, key   : string
-, fetch : () => Promise<T>
-): Static<T> {
+function
+mkStaticE<T>(h: Handle, ns: Symbol, key: string): StaticE<T> {
     let n = h.staticCache.get(ns);
     if (!n) {
         n = new Map<string, Static<any>>();
         h.staticCache.set(ns, n);
     }
 
-    let x = n.get(key);
-    if (!x) {
-        x = new Static(ns, key, fetch);
-        n.set(key, x);
+    let s = n.get(key);
+    if (!s) {
+        s = new StaticE<T>();
+        insertStaticE(h, ns, key, s);
     }
 
-    return x;
+    return s;
 }
 
 
@@ -896,49 +926,51 @@ mkStatic<T>
 export function
 staticValue<T>(h: Handle, s: Static<T>): Computation<T> {
     return new Computation(() => {
-        loadStatic(h, s);
+        let ent = mkStaticE<T>(h, s.ns, s.key);
 
-        if (s.value === undefined) {
+        refreshStatic(h, s, ent);
+
+        if (ent.value === undefined) {
             return Computation.Pending;
         } else {
-            return s.value;
+            return ent.value;
         }
     });
 }
 
 
 
-// loadStatic
+// refreshStatic
 // -----------------------------------------------------------------------
 //
 // Internal function which is used to initiate the fetch if required.
 //
 // FIXME: Retry the request if the promise failed.
 
-
-function lookupStatic<T>(h: Handle, ns: Symbol, key: string): Static<T> {
-    let n = h.staticCache.get(ns);
-    if (n) { return n.get(key); }
-}
-
-function withStatic(h: Handle, x: Static<any>, f: (s: Static<any>) => void): void {
-    let s = lookupStatic<any>(h, x.ns, x.key);
-    if (s) { f(s); }
-}
-
 function
-loadStatic<T>(h: Handle, s: Static<T>): void {
-    if (s.value === undefined && s.networkRequest === undefined) {
+refreshStatic<T>(h: Handle, s: Static<T>, ent: StaticE<T>): void {
+    if (ent.value === undefined && ent.networkRequest === undefined) {
 
-        function lookupE(h) { return lookupStatic(h, s.ns, s.key); }
-        function modifyE(h, f) { withStatic(h, s, f); }
+        function lookupE(h) { return lookupStaticE(h, s.ns, s.key); }
+        function modifyE(h, f) { withStaticE(h, s.ns, s.key, f); }
 
         runNetworkRequest(h, lookupE, modifyE, s.fetch()).then(res => {
-            modifyHandle(h, mkAction(`resolveStatic(${s.ns}, ${s.key})`, h => {
-                withStatic(h, s, s => { s.value = res.res; });
-            }));
+            resolveStatic(h, s, res.res);
         });
     }
+}
+
+
+export function
+resolveStatic<T>(h: Handle, s: Static<T>, value: T): void {
+    modifyHandle(h, mkAction(`resolveStatic(${s.ns.toString()}, ${s.key})`, h => {
+        withStaticE(h, s.ns, s.key, e => {
+            e.networkRequest = undefined;
+            e.lastError      = undefined;
+
+            e.value          = value;
+        });
+    }));
 }
 
 
@@ -1142,7 +1174,7 @@ function
 mkPatch(h: Handle, objectId: string, revId: number): Static<Patch> {
     let key = objectId + '@' + revId;
 
-    return mkStatic<Patch>(h, aversNamespace, key, () => {
+    return new Static<Patch>(aversNamespace, key, () => {
         return fetchPatch(h, objectId, revId);
     });
 }

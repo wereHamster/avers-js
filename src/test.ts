@@ -156,6 +156,11 @@ const bookObjectResponse =
     };
 
 
+function unresolvedPromiseF() {
+    return new Promise(function() { /* empty */ });
+}
+
+
 describe('Avers.parseJSON', function() {
     it('should create a new object from json', function() {
         var book = Avers.parseJSON(Book, jsonBook);
@@ -569,13 +574,7 @@ describe('Avers.ObjectCollection', function() {
     });
 });
 
-
-describe('Avers.resolveEphemeral', function() {
-
-    function unresolvedPromiseF() {
-        return new Promise(function() { /* empty */ });
-    }
-
+describe('Avers.ephemeralValue', function() {
     let e = new Avers.Ephemeral(testNamespace, 'test', unresolvedPromiseF);
 
     it('should return pending when the object is empty', function() {
@@ -586,5 +585,24 @@ describe('Avers.resolveEphemeral', function() {
         let h = mkHandle({});
         Avers.resolveEphemeral(h, e, 42, h.now() + 99);
         assert.equal(42, Avers.ephemeralValue(h, e).get(sentinel));
+    });
+    it('should return the value even if it is stale', function() {
+        let h = mkHandle({});
+        Avers.resolveEphemeral(h, e, 42, h.now() - 99);
+        assert.equal(42, Avers.ephemeralValue(h, e).get(sentinel));
+    });
+});
+
+describe('Avers.staticValue', function() {
+    let s = new Avers.Static(testNamespace, 'test', unresolvedPromiseF);
+
+    it('should return pending when the object is empty', function() {
+        let h = mkHandle({});
+        assert.equal(sentinel, Avers.staticValue(h, s).get(sentinel));
+    });
+    it('should return the value when the object is resolved', function() {
+        let h = mkHandle({});
+        Avers.resolveStatic(h, s, 42);
+        assert.equal(42, Avers.staticValue(h, s).get(sentinel));
     });
 });
