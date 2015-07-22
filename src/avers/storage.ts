@@ -414,15 +414,6 @@ interface IEntity {
 type Entity = Editable<any> | Static<any>;
 
 
-function lookupE<T>(h: Handle, e: Entity): Entity {
-    if (e instanceof Editable) {
-        return h.objectCache.get(e.objectId);
-    } else if (e instanceof Static) {
-        return lookupStatic<T>(h, e.ns, e.key);
-    }
-}
-
-
 
 // runNetworkRequest
 // -----------------------------------------------------------------------
@@ -435,7 +426,7 @@ function lookupE<T>(h: Handle, e: Entity): Entity {
 function
 runNetworkRequest<T, R>
 ( h       : Handle
-, entity  : Entity
+, lookupE : (h: Handle) => Entity
 , modifyE : (h: Handle, f: (e: Entity) => void) => void
 , req     : Promise<R>
 ): Promise<{ networkRequest: NetworkRequest, res: R }> {
@@ -448,7 +439,7 @@ runNetworkRequest<T, R>
     return req.then(res => {
         return { networkRequest: nr, res };
     }).catch(err => {
-        let e = lookupE(h, entity);
+        let e = lookupE(h);
         if (e && e.networkRequest === nr) {
             modifyHandle(h, mkAction(`reportNetworkFailure(${err})`, h => {
                 modifyE(h, e => {
@@ -473,9 +464,11 @@ export function
 loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
     let objId = obj.objectId;
 
+    function lookupE(h) { return h.objectCache.get(objId); }
     function modifyE(h, f) { withEditable(h, objId, f); }
-    return runNetworkRequest(h, obj, modifyE, fetchObject(h, objId)).then(res => {
-        let e = lookupE(h, obj);
+
+    return runNetworkRequest(h, lookupE, modifyE, fetchObject(h, objId)).then(res => {
+        let e = lookupE(h);
         if (e && e.networkRequest === res.networkRequest) {
             resolveEditable<T>(h, objId, res.res);
         }
@@ -661,11 +654,10 @@ saveEditable(h: Handle, objId: string): void {
         }
     });
 
-    function modifyE(h, f) {
-        withEditable(h, objId, f);
-    }
+    function lookupE(h) { return h.objectCache.get(objId); }
+    function modifyE(h, f) { withEditable(h, objId, f); }
 
-    runNetworkRequest(h, obj, modifyE, req).then(res => {
+    runNetworkRequest(h, lookupE, modifyE, req).then(res => {
         // We ignore whether the response is from the current NetworkRequest
         // or not. It's irrelevant, upon receeiving a successful response
         // from the server the changes have been stored in the database,
@@ -940,8 +932,11 @@ function withStatic(h: Handle, x: Static<any>, f: (s: Static<any>) => void): voi
 function
 loadStatic<T>(h: Handle, s: Static<T>): void {
     if (s.value === undefined && s.networkRequest === undefined) {
+
+        function lookupE(h) { return lookupStatic(h, s.ns, s.key); }
         function modifyE(h, f) { withStatic(h, s, f); }
-        runNetworkRequest(h, s, modifyE, s.fetch()).then(res => {
+
+        runNetworkRequest(h, lookupE, modifyE, s.fetch()).then(res => {
             modifyHandle(h, mkAction(`resolveStatic(${s.ns}, ${s.key})`, h => {
                 withStatic(h, s, s => { s.value = res.res; });
             }));
