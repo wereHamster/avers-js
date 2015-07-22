@@ -8,6 +8,12 @@ export function zip<A,B>(a: A[], b: B[]): any[] {
 }
 
 
+export function immutableClone<T extends { constructor: any; }>(x: T, f: (x: T) => void): T {
+    let copy = assign(new x.constructor(), x);
+    f(copy);
+    return Object.freeze(copy);
+}
+
 
 // ---
 // Object.assign polyfill

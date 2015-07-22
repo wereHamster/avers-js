@@ -12,6 +12,7 @@ try {
 }
 
 const sentinel: any = {};
+const testNamespace = Symbol('testNamespace');
 
 
 class Author {
@@ -565,5 +566,25 @@ describe('Avers.ObjectCollection', function() {
                 done();
             }, 10);
         });
+    });
+});
+
+
+describe('Avers.resolveEphemeral', function() {
+
+    function unresolvedPromiseF() {
+        return new Promise(function() { /* empty */ });
+    }
+
+    let e = new Avers.Ephemeral(testNamespace, 'test', unresolvedPromiseF);
+
+    it('should return pending when the object is empty', function() {
+        let h = mkHandle({});
+        assert.equal(sentinel, Avers.ephemeralValue(h, e).get(sentinel));
+    });
+    it('should return the value when the object is resolved', function() {
+        let h = mkHandle({});
+        Avers.resolveEphemeral(h, e, 42, h.now() + 99);
+        assert.equal(42, Avers.ephemeralValue(h, e).get(sentinel));
     });
 });
