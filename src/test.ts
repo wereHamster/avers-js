@@ -591,6 +591,24 @@ describe('Avers.ephemeralValue', function() {
         Avers.resolveEphemeral(h, e, 42, h.now() - 99);
         assert.equal(42, Avers.ephemeralValue(h, e).get(sentinel));
     });
+    it('should invoke the fetch function when the value is stale', function(done) {
+        let h = mkHandle({})
+          , ne = new Avers.Ephemeral(testNamespace, 'test', done);
+
+        Avers.resolveEphemeral(h, ne, 42, h.now() - 99);
+        Avers.ephemeralValue(h, ne).get(sentinel);
+    });
+    it('should not invoke the fetch function when the value is fresh', function(done) {
+        let h = mkHandle({})
+          , ne = new Avers.Ephemeral(testNamespace, 'test', () => {
+              return assert(false, 'fetch of a fresh Ephemeral was invoked');
+          });
+
+        Avers.resolveEphemeral(h, ne, 42, h.now() + 99);
+        Avers.ephemeralValue(h, ne).get(sentinel);
+
+        setTimeout(done, 10);
+    });
 });
 
 describe('Avers.staticValue', function() {

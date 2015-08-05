@@ -1090,7 +1090,7 @@ ephemeralValue<T>(h: Handle, e: Ephemeral<T>): Computation<T> {
 function
 refreshEphemeral<T>(h: Handle, e: Ephemeral<T>, ent: EphemeralE<T>): void {
     let now = h.now();
-    if ((ent.value === undefined || now < ent.expiresAt) && ent.networkRequest === undefined) {
+    if ((ent.value === undefined || now > ent.expiresAt) && ent.networkRequest === undefined) {
 
         function lookupE(h) { return lookupEphemeralE(h, e.ns, e.key); }
         function modifyE(h, f) { withEphemeralE(h, e.ns, e.key, f); }
