@@ -1,5 +1,4 @@
 node_modules/
 typings/
 dist/
-avers.js
-test.js
+avers.test.js

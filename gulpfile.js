@@ -34,7 +34,7 @@ gulp.task('test', ['build'], function() {
 
 gulp.task('test:browser', ['build'], function() {
     return gulp.src('dist/test/avers.test.js')
-        .pipe(browserify({ paths: ['dist'], exclude: ['chai'] }))
+        .pipe(browserify({ paths: ['dist'] }))
         .pipe(gulp.dest('.'));
 })
 
