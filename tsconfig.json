@@ -1,23 +1,24 @@
 {
-    "version": "1.5.0-beta",
+    "version": "1.7.3",
     "compilerOptions": {
         "target": "es6",
-        "emitDecoratorMetadata": true,
-        "declaration": false,
+        "module": "es6",
+        "moduleResolution": "node",
+        "declaration": true,
         "noImplicitAny": false,
         "removeComments": true,
         "noLib": false,
         "preserveConstEnums": true,
         "suppressImplicitAnyIndexErrors": true,
-        "rootDir": "src/",
         "outDir": "dist/"
     },
     "files": [
         "src/avers/core.ts",
+        "src/avers/shared.ts",
         "src/avers/session.ts",
         "src/avers/storage.ts",
         "src/avers.ts",
-        "src/computation.ts",
-        "src/test.ts"
+        "test/avers.test.ts",
+        "typings/tsd.d.ts"
     ]
 }

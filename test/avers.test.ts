@@ -1,15 +1,6 @@
-/// <reference path="../ext/mocha.d.ts" />
+import * as Avers from '../src/avers';
+import {assert} from "chai";
 
-import * as Avers from './avers';
-
-
-declare var chai, require;
-var assert;
-try {
-    assert = require('chai').assert;
-} catch (e) {
-    assert = chai.assert;
-}
 
 const sentinel: any = {};
 const testNamespace = Symbol('testNamespace');
@@ -601,7 +592,8 @@ describe('Avers.ephemeralValue', function() {
     it('should not invoke the fetch function when the value is fresh', function(done) {
         let h = mkHandle({})
           , ne = new Avers.Ephemeral(testNamespace, 'test', () => {
-              return assert(false, 'fetch of a fresh Ephemeral was invoked');
+              assert(false, 'fetch of a fresh Ephemeral was invoked');
+              return undefined;
           });
 
         Avers.resolveEphemeral(h, ne, 42, h.now() + 99);
