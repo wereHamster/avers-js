@@ -1,2 +1,2 @@
-before_script: nvm install iojs
+language: node_js
 script: ./script/cibuild
