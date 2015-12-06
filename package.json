@@ -20,7 +20,7 @@
     "gulp-tslint": "^4.1.1",
     "gulp-typescript": "^2.10.0",
     "merge2": "^0.3.6",
-    "mocha": "*",
+    "mocha": "^2.3.4",
     "serve": "*",
     "tsd": "^0.6.5",
     "tslint": "^3.1.1",

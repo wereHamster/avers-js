@@ -6,4 +6,5 @@ script/bootstrap
 
 
 ./node_modules/.bin/gulp lint
-./node_modules/.bin/gulp test
+./node_modules/.bin/gulp build
+./node_modules/.bin/mocha dist/test/avers.test.js
