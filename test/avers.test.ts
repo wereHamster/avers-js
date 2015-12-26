@@ -2,7 +2,9 @@ import * as Avers from '../src/avers';
 import {assert} from "chai";
 
 
-const sentinel: any = {};
+class Sentinel {}
+const sentinel: any = new Sentinel;
+
 const testNamespace = Symbol('testNamespace');
 
 
