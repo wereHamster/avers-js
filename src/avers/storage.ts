@@ -44,6 +44,9 @@ export class Handle {
     generationNumber = 0;
     // ^ Incremented everytime something managed by this handle changes.
 
+    generationChangeCallbacks: Set<Function> = new Set();
+    // ^ List of callbacks which are invoked when the generation changes.
+
     objectCache    = new Map<string, Editable<any>>();
     staticCache    = new Map<Symbol, Map<string, StaticE<any>>>();
     ephemeralCache = new Map<Symbol, Map<string, EphemeralE<any>>>();
@@ -96,6 +99,10 @@ function modifyHandle(h: Handle, act: Action): void {
 
 export function startNextGeneration(h: Handle): void {
     h.generationNumber++;
+
+    for (let f of h.generationChangeCallbacks.values()) {
+        f();
+    }
 }
 
 
@@ -110,18 +117,8 @@ export function startNextGeneration(h: Handle): void {
 
 export function
 attachGenerationListener(h: Handle, f: () => void): Function {
-    function generationChangeCallback(records) {
-        var changedGeneration = records.some(rec => {
-            return rec.name === 'generationNumber';
-        });
-
-        if (changedGeneration) {
-            f();
-        }
-    }
-
-    (<any>Object).observe(h, generationChangeCallback);
-
+    let generationChangeCallback = f.bind(null);
+    h.generationChangeCallbacks.add(generationChangeCallback);
     return generationChangeCallback;
 }
 
@@ -134,7 +131,7 @@ attachGenerationListener(h: Handle, f: () => void): Function {
 
 export function
 detachGenerationListener(h: Handle, listener: Function): void {
-    (<any>Object).unobserve(h, listener);
+    h.generationChangeCallbacks.delete(listener);
 }
 
 
