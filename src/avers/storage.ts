@@ -16,7 +16,7 @@
 import Computation from 'computation';
 
 import { immutableClone } from './shared';
-import { applyOperation, Operation, deliverChangeRecords, Change,
+import { applyOperation, Operation, Change,
     changeOperation, parseJSON, migrateObject, attachChangeListener,
     detachChangeListener } from './core';
 
@@ -541,8 +541,6 @@ function initContent(h: Handle, obj: Editable<any>): void {
     obj.content = [].concat(obj.submittedChanges, obj.localChanges).reduce((c, o) => {
         return applyOperation(c, o.path, o);
     }, obj.shadowContent);
-
-    deliverChangeRecords(obj.content);
 
     obj.changeListener = mkChangeListener(h, obj.objectId);
     attachChangeListener(obj.content, obj.changeListener);

@@ -13,15 +13,6 @@ function result(object, property: string) {
 
 
 
-// changeCallbackSymbol
-// -----------------------------------------------------------------------
-//
-// Avers attaches a unique callback to each object or collection and saves
-// a reference to the callback under this symbol.
-
-const changeCallbackSymbol = Symbol('aversChangeCallback');
-
-
 // changeListenersSymbol
 // -----------------------------------------------------------------------
 //
@@ -180,14 +171,6 @@ applyOperation(root, path: string, op: Operation): void {
     switch (op.type) {
     case 'set'    : return setValueAtPath(clone(root), path, op.value);
     case 'splice' : return applySpliceOperation(clone(root), path, op);
-    }
-}
-
-export function
-initializeProperties(x) {
-    if (!x[changeCallbackSymbol]) {
-        let fn = x[changeCallbackSymbol] = objectChangesCallback.bind(x);
-        (<any>Object).observe(x, fn);
     }
 }
 
@@ -360,42 +343,52 @@ migrateObject(x) {
     return x;
 }
 
+let objectProxyHandler = {
+    set: (target, property, value, receiver) => {
+        let oldValue           = target[property]
+          , propertyDescriptor = aversProperties(target)[property];
 
-// deliverChangeRecords
-// -----------------------------------------------------------------------
-//
-// Deliver all outstanding change records for the given object and all its
-// children, if applicable. See Object.deliverChangeRecords.
+        target[property] = value;
 
-export function
-deliverChangeRecords(obj): void {
-    let fn = obj[changeCallbackSymbol];
-    if (fn) {
-        (<any>Object).deliverChangeRecords(fn);
+        if (propertyDescriptor) {
+            if (isObservableProperty(propertyDescriptor)) {
+                if (oldValue) {
+                    stopListening(target, oldValue);
+                }
 
-        // Flush changes in children.
-        if (Array.isArray(obj)) {
-            obj.forEach(x => {
-                deliverChangeRecords(x);
-            });
-
-        } else if (obj === Object(obj)) {
-            let aversProps = aversProperties(obj);
-
-            for (let name in aversProps) {
-                let prop = obj[name];
-                if (prop === Object(prop)) {
-                    deliverChangeRecords(prop);
+                if (value) {
+                    // FIXME: Is this 'stopListening' needed?
+                    stopListening(target, value);
+                    forwardChanges(target, value, property);
                 }
             }
+
+            emitChanges(target, [
+                new Change(property, new Operation.Set(target, value, oldValue))
+            ]);
         }
-    }
-}
+
+        return true;
+    },
+
+    deleteProperty: (target, property) => {
+        let oldValue           = target[property]
+          , propertyDescriptor = aversProperties(target)[property];
+
+        if (propertyDescriptor && isObservableProperty(propertyDescriptor) && oldValue) {
+            stopListening(target, oldValue);
+        }
+
+        emitChanges(target, [
+            new Change(property, new Operation.Set(target, undefined, oldValue))
+        ]);
+
+        return true;
+    },
+};
 
 function createObject<T>(x: new() => T): T {
-    let obj = new x();
-    initializeProperties(obj);
-    return obj;
+    return new Proxy(new x, objectProxyHandler);
 }
 
 export function
@@ -409,9 +402,7 @@ parseJSON<T>(x: new() => T, json): T {
 
 export function
 mk<T>(x: new() => T, json): T {
-    let obj = migrateObject(parseJSON(x, json));
-    deliverChangeRecords(obj);
-    return obj;
+    return migrateObject(parseJSON(x, json));
 }
 
 function concatPath(self: string, child: string): string {
@@ -420,16 +411,6 @@ function concatPath(self: string, child: string): string {
     } else {
         return self;
     }
-}
-
-function toObjectOperation(x: ChangeRecord): Operation.Set {
-    let object = x.object;
-
-    return new Operation.Set
-        ( object
-        , object[x.name]
-        , x.oldValue
-        );
 }
 
 
@@ -448,48 +429,6 @@ interface ChangeRecord {
     index      : number;
     addedCount : number;
     removed    : any[];
-}
-
-function objectChangesCallback(changes: ChangeRecord[]): void {
-    changes.forEach(x => {
-        let self = x.object
-          , propertyDescriptor = aversProperties(self)[x.name];
-
-        if (!propertyDescriptor) {
-            return;
-        }
-
-        if (x.type === 'add') {
-            emitChanges(self, [new Change(x.name, toObjectOperation(x))]);
-
-            let value = self[x.name];
-            if (value) {
-                if (isObservableProperty(propertyDescriptor)) {
-                    forwardChanges(self, value, x.name);
-                }
-            }
-        } else if (x.type === 'update') {
-            emitChanges(self, [new Change(x.name, toObjectOperation(x))]);
-
-            if (isObservableProperty(propertyDescriptor)) {
-                if (x.oldValue) {
-                    stopListening(self, x.oldValue);
-                }
-
-                let value = self[x.name];
-                if (value) {
-                    stopListening(self, value);
-                    forwardChanges(self, value, x.name);
-                }
-            }
-        } else if (x.type === 'delete') {
-            emitChanges(self, [new Change(x.name, toObjectOperation(x))]);
-
-            if (isObservableProperty(propertyDescriptor)) {
-                stopListening(self, x.oldValue);
-            }
-        }
-    });
 }
 
 export function
@@ -546,50 +485,15 @@ toJSON(x) {
     }
 }
 
+
+export interface Item {
+    id : string;
+}
+
 export function
 itemId<T extends Item>(collection: Collection<T>, item: T): string {
     // ASSERT: collection.idMap[item.id] === item
     return item.id;
-}
-
-function collectionChangesCallback(changes: ChangeRecord[]): void {
-    changes.forEach(x => {
-        let self = x.object;
-
-        if (x.type === 'splice') {
-            let insert = self.slice(x.index, x.index + x.addedCount);
-
-            emitChanges(self, [new Change(null, new Operation.Splice
-                ( x.object
-                , x.index
-                , x.removed
-                , insert
-                )
-            )]);
-
-            x.removed.forEach(x => {
-                stopListening(self, x);
-                delete self.idMap[x.id];
-            });
-
-            insert.forEach(x => {
-                self.idMap[x.id] = x;
-
-                if (Object(x) === x) {
-                    listenTo(self, x, changes => {
-                        let id = itemId(self, x);
-                        emitChanges(self, changes.map(change => {
-                            return embedChange(change, id);
-                        }));
-                    });
-                }
-            });
-        }
-    });
-}
-
-export interface Item {
-    id : string;
 }
 
 export interface Collection<T extends Item> extends Array<T> {
@@ -605,13 +509,64 @@ function mkCollection<T extends Item>(items: T[]): Collection<T> {
     let collection = <Collection<T>> [];
     resetCollection(collection);
 
+
     if (items.length > 0) {
         let args = (<any>[0,0]).concat(items);
         splice.apply(collection, args);
     }
 
-    let fn = collection[changeCallbackSymbol] = collectionChangesCallback.bind(collection);
-    (<any>Array).observe(collection, fn);
+
+    function _splice(start: number, deleteCount: number, ...items: T[]): T[] {
+        let deletedItems = collection.slice(start, start + deleteCount);
+
+        splice.call(collection, start, deleteCount, ...items);
+
+        deletedItems.forEach(item => {
+            stopListening(collection, item);
+            delete collection.idMap[item.id];
+        });
+
+        items.forEach(item => {
+            if (Object(item) === item) {
+                collection.idMap[item.id] = item;
+
+                listenTo(collection, item, changes => {
+                    let id = itemId(collection, item);
+                    emitChanges(collection, changes.map(change => embedChange(change, id)));
+                });
+            }
+        });
+
+        emitChanges(collection, [
+            new Change(null, new Operation.Splice(collection, start, deletedItems, items))
+        ]);
+
+        return deletedItems;
+    }
+
+
+    collection.push = (...items) => {
+        _splice(collection.length, 0, ...items);
+        return collection.length;
+    };
+
+    collection.pop = () => {
+        return _splice(collection.length - 1, 1)[0];
+    };
+
+    collection.splice = <any> ((start: number, deleteCount: number, ...items: T[]): T[] => {
+        return _splice(start, deleteCount, ...items);
+    });
+
+    collection.shift = () => {
+        return _splice(0, 1)[0];
+    };
+
+    collection.unshift = (...items) => {
+        _splice(0, 0, ...items);
+        return collection.length;
+    };
+
 
     return collection;
 }
@@ -690,17 +645,12 @@ export module Operation {
 
 
 function embedChange<T>(change: Change<T>, key: string): Change<T> {
-    return new Change
-        ( concatPath(key, change.path)
-        , change.record
-        );
+    return new Change(concatPath(key, change.path), change.record);
 }
 
 function forwardChanges(obj, prop, key: string) {
     listenTo(obj, prop, changes => {
-        emitChanges(obj, changes.map(change => {
-            return embedChange(change, key);
-        }));
+        emitChanges(obj, changes.map(change => embedChange(change, key)));
     });
 }
 

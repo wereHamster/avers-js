@@ -259,18 +259,6 @@ describe('Change event propagation', function() {
         expectChangeAtPath(library, 'items', done);
         library.items.push(Avers.parseJSON(Item, jsonItem));
     });
-
-    it('Avers.deliverChangeRecords should flush all changes', function(done) {
-        var changeAfter, book = Avers.parseJSON(Book, jsonBook);
-        Avers.deliverChangeRecords(book);
-
-        Avers.attachChangeListener(book, function(changes) { changeAfter = true; });
-
-        setTimeout(function() {
-            assert.notOk(changeAfter, 'Callback invoked after flushing changes');
-            done();
-        }, 10);
-    });
 });
 
 describe('Avers.resolvePath', function() {
@@ -290,7 +278,6 @@ describe('Avers.resolvePath', function() {
         var item, library = Avers.mk(Library, {});
 
         library.items.push(item = Avers.parseJSON(Item, jsonBookItemWithId));
-        Avers.deliverChangeRecords(library);
 
         var id   = Avers.itemId(library.items, item);
         var path = 'items.' + id + '.content.author.firstName';
@@ -373,7 +360,6 @@ describe('Avers.itemId', function() {
         var item, library = Avers.mk(Library, {});
 
         library.items.push(item = Avers.parseJSON(Item, jsonBookItemWithId));
-        Avers.deliverChangeRecords(library);
         assert.equal(Avers.itemId(library.items, item), jsonBookItemWithId.id);
     });
 });
@@ -446,7 +432,6 @@ describe('Avers.mk', function() {
         });
 
         author.firstName = 'Jane';
-        Avers.deliverChangeRecords(author);
 
         setTimeout(() => {
             assert.lengthOf(allChanges, 1);
@@ -460,13 +445,12 @@ describe('Avers.lookupItem', function() {
     it('should find the item in the collection', function() {
         var library = Avers.mk(Library, {});
         library.items.push(Avers.mk(Item, jsonBookItemWithId));
-        Avers.deliverChangeRecords(library);
+        console.log('library', library.items);
         assert(!!Avers.lookupItem(library.items, jsonBookWithId.id));
     });
-    it('should find the item in the collection', function() {
+    it('should find non-existing in the collection', function() {
         var library = Avers.mk(Library, {});
         library.items.push(Avers.mk(Item, jsonBookItemWithId));
-        Avers.deliverChangeRecords(library);
         assert.isUndefined(Avers.lookupItem(library.items, 'non-existing-id'));
     });
 });
@@ -483,7 +467,7 @@ describe('Avers.attachGenerationListener', function() {
 
 describe('Avers.lookupEditable', function() {
     it('should return a Computation in Pending status', function() {
-        assert.equal(sentinel, Avers.lookupEditable(mkHandle({}), 'id').get(sentinel));
+        assert.equal(sentinel, Avers.lookupEditable(mkHandle(libraryObjectResponse), 'id').get(sentinel));
     });
     it('should resolve to the object after it is loaded', function(done) {
         let h = mkHandle(libraryObjectResponse);
