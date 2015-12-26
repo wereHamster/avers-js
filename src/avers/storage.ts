@@ -562,24 +562,32 @@ export function
 resolveEditable<T>(h: Handle, objId: string, json): void {
     modifyHandle(h, mkAction(`resolveEditable(${objId})`, h => {
         updateEditable(h, objId, obj => {
-            obj.networkRequest = undefined;
-            obj.lastError      = undefined;
+            obj.networkRequest   = undefined;
+            obj.lastError        = undefined;
 
-            obj.type           = json.type;
-            obj.objectId       = json.id;
-            obj.createdAt      = new Date(Date.parse(json.createdAt));
-            obj.createdBy      = json.createdBy;
-            obj.revisionId     = json.revisionId || 0;
+            obj.type             = json.type;
+            obj.objectId         = json.id;
+            obj.createdAt        = new Date(Date.parse(json.createdAt));
+            obj.createdBy        = json.createdBy;
+            obj.revisionId       = json.revisionId || 0;
 
-            obj.shadowContent  = parseJSON<T>(h.infoTable.get(obj.type), json.content);
-            deliverChangeRecords(obj.shadowContent);
+            obj.shadowContent    = parseJSON<T>(h.infoTable.get(obj.type), json.content);
 
             obj.submittedChanges = [];
             obj.localChanges     = [];
 
             initContent(h, obj);
-            migrateObject(obj.content);
         });
+
+        // This needs to be outside of the 'updateEditable' callback. This
+        // function behaves like a user, it may be modifying the content, and
+        // recursive invokations of 'updateEditable' are not allowed.
+        //
+        // When we were using O.o that was not a problem, because change
+        // delivery was asynchronous, but Proxy traps are (necessarily)
+        // synchronous.
+
+        migrateObject(h.objectCache.get(objId).content);
     }));
 }
 
