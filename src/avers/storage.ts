@@ -82,9 +82,11 @@ function mkAction(label, applyF): Action {
 }
 
 function modifyHandle(h: Handle, act: Action): void {
-    (<any>Object).getNotifier(h).notify({
-        type: 'Avers::Action', action: act
-    });
+    // Removing Object.observe, will have to be replaced with explicit callbacks.
+    //
+    // (<any>Object).getNotifier(h).notify({
+    //     type: 'Avers::Action', action: act
+    // });
 
     act.applyF(h);
     startNextGeneration(h);
