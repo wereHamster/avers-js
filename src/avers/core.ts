@@ -46,9 +46,7 @@ const childListenersSymbol = Symbol('aversChildListeners');
 function emitChanges(self, changes: Change<any>[]): void {
     let listeners = self[changeListenersSymbol];
     if (listeners) {
-        listeners.forEach(fn => {
-            fn(changes);
-        });
+        listeners.forEach(fn => { fn(changes); });
     }
 }
 
@@ -227,9 +225,7 @@ defineObject<T>(x: any, name: string, klass: any, def?: T) {
                };
 
     if (def) {
-        desc.value = function() {
-            return mk(klass, def);
-        };
+        desc.value = () => mk(klass, def);
     }
 
     defineProperty(x, name, desc);
@@ -260,9 +256,7 @@ defineVariant<T>(x: any, name: string, typeField, typeMap, def?: T) {
                };
 
     if (def) {
-        desc.value = function() {
-            return clone(def);
-        };
+        desc.value = () => clone(def);
     }
 
     defineProperty(x, name, desc);
@@ -278,7 +272,7 @@ defineCollection(x: any, name: string, klass: any) {
 }
 
 function createObjectParser(klass) {
-    return function(json) { return parseJSON(klass, json); };
+    return (json) => parseJSON(klass, json);
 }
 
 function createVariantParser(name: string, typeField, typeMap) {
@@ -299,7 +293,7 @@ parseValue(desc: PropertyDescriptor, old, json, parent) {
                 resetCollection(old);
             }
 
-            json.forEach(function(x) {
+            json.forEach(x => {
                 old.push(withId(json, desc.parser(x, parent)));
             });
 
@@ -457,7 +451,7 @@ interface ChangeRecord {
 }
 
 function objectChangesCallback(changes: ChangeRecord[]): void {
-    changes.forEach(function(x) {
+    changes.forEach(x => {
         let self = x.object
           , propertyDescriptor = aversProperties(self)[x.name];
 
@@ -546,9 +540,7 @@ toJSON(x) {
     if (x === Object(x) && aversProperties(x)) {
         return objectJSON(x);
     } else if (Array.isArray(x)) {
-        return x.map(function(item) {
-            return withId(item, toJSON(item));
-        });
+        return x.map(item => withId(item, toJSON(item)));
     } else {
         return x;
     }
@@ -561,7 +553,7 @@ itemId<T extends Item>(collection: Collection<T>, item: T): string {
 }
 
 function collectionChangesCallback(changes: ChangeRecord[]): void {
-    changes.forEach(function(x) {
+    changes.forEach(x => {
         let self = x.object;
 
         if (x.type === 'splice') {
@@ -575,16 +567,16 @@ function collectionChangesCallback(changes: ChangeRecord[]): void {
                 )
             )]);
 
-            x.removed.forEach(function(x) {
+            x.removed.forEach(x => {
                 stopListening(self, x);
                 delete self.idMap[x.id];
             });
 
-            insert.forEach(function(x) {
+            insert.forEach(x => {
                 self.idMap[x.id] = x;
 
                 if (Object(x) === x) {
-                    listenTo(self, x, function(changes) {
+                    listenTo(self, x, changes => {
                         let id = itemId(self, x);
                         emitChanges(self, changes.map(change => {
                             return embedChange(change, id);
