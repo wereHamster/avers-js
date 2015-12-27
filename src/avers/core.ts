@@ -86,7 +86,7 @@ interface PropertyDescriptor {
 // Return the property descriptors for the given object. Returns undefined
 // if the object has no properties defined on it.
 function aversProperties(obj): AversProperties {
-    return obj[aversPropertiesSymbol];
+    return Object.getPrototypeOf(obj)[aversPropertiesSymbol];
 }
 
 function withId(json, obj) {
@@ -177,7 +177,7 @@ applyOperation(root, path: string, op: Operation): void {
 function
 defineProperty(x: any, name: string, desc: PropertyDescriptor): void {
     let proto      = x.prototype
-      , aversProps = aversProperties(proto) || Object.create(null);
+      , aversProps = proto[aversPropertiesSymbol] || Object.create(null);
 
     aversProps[name] = desc;
     proto[aversPropertiesSymbol] = aversProps;
@@ -186,7 +186,7 @@ defineProperty(x: any, name: string, desc: PropertyDescriptor): void {
 export function
 declareConstant(x: any): void {
     let proto      = x.prototype
-      , aversProps = aversProperties(proto) || Object.create(null);
+      , aversProps = proto[aversPropertiesSymbol] || Object.create(null);
 
     proto[aversPropertiesSymbol] = aversProps;
 }
@@ -224,7 +224,7 @@ defineVariant<T>(x: any, name: string, typeField, typeMap, def?: T) {
     // This is something which can be removed from the production builds.
 
     for (let k in typeMap) {
-        let aversProps = aversProperties(typeMap[k].prototype);
+        let aversProps = typeMap[k].prototype[aversPropertiesSymbol];
         if (aversProps === undefined) {
             throw new Error('Variant constructor of "' +
                 k + '" is not an Avers object');
