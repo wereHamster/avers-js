@@ -584,8 +584,14 @@ resolveEditable<T>(h: Handle, objId: string, json): void {
         // When we were using O.o that was not a problem, because change
         // delivery was asynchronous, but Proxy traps are (necessarily)
         // synchronous.
+        //
+        // The lookup in the cache can not fail, the object is guaranteed
+        // to exist. But we are extra cautious and do a check nonetheless.
 
-        migrateObject(h.objectCache.get(objId).content);
+        let obj = h.objectCache.get(objId);
+        if (obj !== undefined) {
+            migrateObject(obj.content);
+        }
     }));
 }
 
