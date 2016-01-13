@@ -702,7 +702,18 @@ saveEditable(h: Handle, objId: string): void {
 
 
                 // Apply patches which the server sent us to the shadow content.
-                let serverPatches = [].concat(body.previousPatches, body.resultingPatches);
+                // Here we have to be careful which patches to apply. The server
+                // patches may have been delivered to us via another channel,
+                // such as a WebSocket connection.
+                //
+                // The revIds in previousPatches and resultingPatches are
+                // guaranteed to be continuous, but we may have to drop some
+                // patches from the head of the list if those revision were
+                // already applied.
+
+                let serverPatches = [].concat(body.previousPatches, body.resultingPatches).filter(patch => {
+                    return patch.revisionId > obj.revisionId;
+                });
 
                 obj.revisionId += serverPatches.length;
                 obj.shadowContent = serverPatches.reduce((c, patch) => {
