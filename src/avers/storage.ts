@@ -480,7 +480,7 @@ loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
 export function
 fetchObject(h: Handle, id: string): Promise<any> {
     let url = endpointUrl(h, '/objects/' + id);
-    return h.fetch(url, { credentials: 'include' }).then(res => {
+    return h.fetch(url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
         if (res.status === 200) {
             return res.json();
         } else {
@@ -496,7 +496,7 @@ createObject(h: Handle, type: string, content): Promise<string> {
     let url  = endpointUrl(h, '/objects')
       , body = JSON.stringify({ type: type, content: content });
 
-    return h.fetch(url, { credentials: 'include', method: 'POST', body: body }).then(res => {
+    return h.fetch(url, { credentials: 'include', method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' }}).then(res => {
         return res.json().then(json => {
             startNextGeneration(h);
             return json.id;
@@ -515,7 +515,7 @@ createObjectId
     let url  = endpointUrl(h, '/objects/' + objId)
       , body = JSON.stringify({ type: type, content: content });
 
-    return h.fetch(url, { credentials: 'include', method: 'POST', body: body }).then(res => {
+    return h.fetch(url, { credentials: 'include', method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' }}).then(res => {
         return res.json().then(json => {
             startNextGeneration(h);
             return {};
@@ -654,7 +654,7 @@ saveEditable(h: Handle, objId: string): void {
 
 
     let url = endpointUrl(h, '/objects/' + objId);
-    let req = h.fetch(url, { credentials: 'include', method: 'PATCH', body: data }).then(res => {
+    let req = h.fetch(url, { credentials: 'include', method: 'PATCH', body: data, headers: { accept: 'application/json', 'content-type': 'application/json' }}).then(res => {
         if (res.status === 200) {
             return res.json();
         } else {
@@ -794,7 +794,7 @@ export class ObjectCollection {
         if (now - this.fetchedAt > 10 * 1000) {
             this.fetchedAt = now;
 
-            this.h.fetch(this.url, { credentials: 'include' }).then(res => {
+            this.h.fetch(this.url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
                 return res.json().then(json => {
                     this.mergeIds(json);
                 });
@@ -1174,7 +1174,7 @@ export class Patch {
 export function
 fetchPatch(h: Handle, objectId: string, revId: number): Promise<Patch> {
     let url = endpointUrl(h, '/objects/' + objectId + '/patches/' + revId);
-    return h.fetch(url, { credentials: 'include' }).then(res => {
+    return h.fetch(url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
         if (res.status === 200) {
             return res.json().then(json => {
                 return new Patch
