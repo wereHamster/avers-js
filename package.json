@@ -27,6 +27,6 @@
     "typescript": "^1.7.5"
   },
   "dependencies": {
-    "computation": "0.0.2"
+    "computation": "^1.0.0"
   }
 }
