@@ -120,11 +120,15 @@ function mkHandle(json) {
         );
     }
 
+    function createWebSocket(path: string) {
+        return <any> {};
+    }
+
     let infoTable = new Map<string, Avers.ObjectConstructor<any>>();
     infoTable.set('library', Library);
     infoTable.set('book', Book);
 
-    return new Avers.Handle('/api', fetch, now, infoTable);
+    return new Avers.Handle('/api', fetch, createWebSocket, now, infoTable);
 }
 
 function mkObjectCollection() {

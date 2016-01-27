@@ -62,6 +62,9 @@ export class Handle {
         // ^ API to send network requests. If you use this extension in
         // a web browser, you can pass in the 'fetch' function directly.
 
+      , public createWebSocket : (path: string) => WebSocket
+        // ^ Create a WebSocket connection to the given path.
+
       , public now : () => number
         // ^ Function which returns the current time. You can use 'Date.now'
         // or 'window.performance.now', depending on how accurate time
