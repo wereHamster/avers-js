@@ -98,7 +98,7 @@ signup(session: Session, login: string): Promise<string> {
     let body = JSON.stringify({ login: login });
 
     beginTransition(session, Transition.Signup);
-    return runReq(session, '/signup', { method: 'POST', body: body }).then(jsonOk).then(json => {
+    return runReq(session, '/signup', { method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' } }).then(jsonOk).then(json => {
 
         // Signup doesn't authenticate the client. Therefore we preserve
         // the existing objId in the session.
@@ -123,7 +123,7 @@ signin(session: Session, login: string, secret: string): Promise<void> {
     let body = JSON.stringify({ login: login, secret: secret });
 
     beginTransition(session, Transition.Signin);
-    return runReq(session, '/session', { method: 'POST', body: body }).then(jsonOk).then(json => {
+    return runReq(session, '/session', { method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' } }).then(jsonOk).then(json => {
         finishTransition(session, json.objId, undefined);
     }).catch(err => {
         finishTransition(session, undefined, err);
