@@ -493,18 +493,7 @@ applyEditableChanges(h: Handle, obj: Editable<any>, f: (obj: Editable<any>) => v
 
 
 
-// IEntity
-// -----------------------------------------------------------------------
-//
-// Our uniform representation of an object that can be fetched or
-// synchronized with the server.
-
-interface IEntity {
-    networkRequest : NetworkRequest;
-    lastError      : Error;
-}
-
-// The concrete types of IEntity which can be managed by the 'Handle'.
+// All the entity types which are managed by the Avers Handle.
 type Entity = Editable<any> | StaticE<any> | EphemeralE<any>;
 
 
