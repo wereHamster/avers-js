@@ -83,23 +83,20 @@ export class Handle {
 
 
 
-interface Action {
-    label  : string;
-    applyF : (h: Handle) => void;
+interface Action<T> {
+    label   : string;
+    payload : T;
+    applyF  : (h: Handle, payload: T) => void;
 }
 
-function mkAction(label, applyF): Action {
-    return { label, applyF };
+function mkAction<T>(label: string, payload: T, applyF: (h: Handle, payload: T) => void): Action<T> {
+    return { label, payload, applyF };
 }
 
-function modifyHandle(h: Handle, act: Action): void {
-    // Removing Object.observe, will have to be replaced with explicit callbacks.
-    //
-    // (<any>Object).getNotifier(h).notify({
-    //     type: 'Avers::Action', action: act
-    // });
+function modifyHandle<T>(h: Handle, act: Action<T>): void {
+    console.debug('modifyHandle', act.label);
 
-    act.applyF(h);
+    act.applyF(h, act.payload);
     startNextGeneration(h);
 }
 
@@ -219,7 +216,7 @@ changeFeedSubscription(h: Handle, json) {
 
 function
 applyChange(h: Handle, change) {
-    modifyHandle(h, mkAction(`applyFeedChange(${change.type})`, h => {
+    modifyHandle(h, mkAction(`applyChange(${change.type})`, change, (h, change) => {
         let {type,content} = change;
 
         if (type === 'patch') {
@@ -529,7 +526,7 @@ runNetworkRequest<T, R>
 ): Promise<{ networkRequest: NetworkRequest, res: R }> {
     let nr = new NetworkRequest(h.now(), req);
 
-    modifyHandle(h, mkAction(`attachNetworkRequest()`, h => {
+    modifyHandle(h, mkAction(`attachNetworkRequest()`, nr, (h, nr) => {
         modifyE(h, e => { e.networkRequest = nr; });
     }));
 
@@ -538,7 +535,7 @@ runNetworkRequest<T, R>
     }).catch(err => {
         let e = lookupE(h);
         if (e && e.networkRequest === nr) {
-            modifyHandle(h, mkAction(`reportNetworkFailure(${err})`, h => {
+            modifyHandle(h, mkAction(`reportNetworkFailure(${err})`, err, (h, err) => {
                 modifyE(h, e => {
                     e.networkRequest = undefined;
                     e.lastError      = err;
@@ -662,7 +659,7 @@ function initContent(obj: Editable<any>): void {
 
 export function
 resolveEditable<T>(h: Handle, objId: string, json): void {
-    modifyHandle(h, mkAction(`resolveEditable(${objId})`, h => {
+    modifyHandle(h, mkAction(`resolveEditable(${objId})`, { objId, json }, (h, { objId, json }) => {
         updateEditable(h, objId, obj => {
             obj.networkRequest   = undefined;
             obj.lastError        = undefined;
@@ -708,7 +705,7 @@ mkChangeListener<T>(h: Handle, objId: string): (changes: Change<any>[]) => void 
     return function onChange(changes: Change<any>[]): void {
         let ops = changes.map(changeOperation);
 
-        modifyHandle(h, mkAction(`captureChanges(${objId},${ops.length})`, h => {
+        modifyHandle(h, mkAction(`captureChanges(${objId},${ops.length})`, { objId, ops }, (h, { objId, ops }) => {
             withEditable(h, objId, obj => {
                 obj.localChanges = obj.localChanges.concat(ops);
                 initContent(obj);
@@ -749,7 +746,7 @@ saveEditable(h: Handle, objId: string): void {
 
     // We immeadiately mark the Editable as being saved. This ensures that
     // any future attempts to save the editable are skipped.
-    modifyHandle(h, mkAction(`prepareLocalChanges(${obj.objectId})`, h => {
+    modifyHandle(h, mkAction(`prepareLocalChanges(${obj.objectId})`, objId, (h, objId) => {
         withEditable(h, obj.objectId, obj => {
             obj.submittedChanges = obj.localChanges;
             obj.localChanges     = [];
@@ -794,7 +791,7 @@ saveEditable(h: Handle, objId: string): void {
         // to date WRT the server version. Also bump the revisionId to
         // reflect what the server has.
 
-        modifyHandle(h, mkAction(`applyServerResponse(${objId})`, h => {
+        modifyHandle(h, mkAction(`applyServerResponse(${objId})`, { objId, res, body }, (h, { objId, res, body }) => {
             withEditable(h, objId, obj => {
                 if (obj.networkRequest === res.networkRequest) {
                     obj.networkRequest = undefined;
@@ -817,7 +814,7 @@ saveEditable(h: Handle, objId: string): void {
         // were submitted before us, and we'd have to rebase our
         // changes on top of that.
 
-        modifyHandle(h, mkAction(`restoreLocalChanges(${obj.objectId})`, h => {
+        modifyHandle(h, mkAction(`restoreLocalChanges(${obj.objectId})`, objId, (h, objId) => {
             withEditable(h, objId, obj => {
                 obj.localChanges     = obj.submittedChanges.concat(obj.localChanges);
                 obj.submittedChanges = [];
@@ -865,7 +862,7 @@ export class ObjectCollection {
             }, false);
 
         if (isChanged) {
-            modifyHandle(this.h, mkAction(`updateObjectCollection(${this.collectionName})`, () => {
+            modifyHandle(this.h, mkAction(`updateObjectCollection(${this.collectionName})`, {}, () => {
                 this.objectIds = ids;
             }));
         }
@@ -901,7 +898,7 @@ export class ObjectCollection {
 
 export function
 resetObjectCollection(c: ObjectCollection): void {
-    modifyHandle(c.h, mkAction(`resetObjectCollection(${c.collectionName})`, h => {
+    modifyHandle(c.h, mkAction(`resetObjectCollection(${c.collectionName})`, {}, () => {
         c.fetchedAt = 0;
     }));
 }
@@ -1067,7 +1064,7 @@ refreshStatic<T>(h: Handle, s: Static<T>, ent: StaticE<T>): void {
 
 export function
 resolveStatic<T>(h: Handle, s: Static<T>, value: T): void {
-    modifyHandle(h, mkAction(`resolveStatic(${s.ns.toString()}, ${s.key})`, h => {
+    modifyHandle(h, mkAction(`resolveStatic(${s.ns.toString()}, ${s.key})`, s, (h, s) => {
         withStaticE(h, s.ns, s.key, e => {
             e.networkRequest = undefined;
             e.lastError      = undefined;
@@ -1221,7 +1218,7 @@ resolveEphemeral<T>
 , value     : T
 , expiresAt : number
 ): void {
-    modifyHandle(h, mkAction(`resolveEphemeral(${e.ns.toString()}, ${e.key})`, h => {
+    modifyHandle(h, mkAction(`resolveEphemeral(${e.ns.toString()}, ${e.key})`, e, (h, e) => {
         withEphemeralE(h, e.ns, e.key, e => {
             e.networkRequest = undefined;
             e.lastError      = undefined;
