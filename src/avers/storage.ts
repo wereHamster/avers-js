@@ -195,6 +195,8 @@ mkEditable<T>(h: Handle, id: string): Editable<T> {
     let obj = h.objectCache.get(id);
     if (!obj) {
         obj = new Editable<T>(id);
+        obj.changeListener = mkChangeListener(h, id);
+
         h.objectCache.set(id, Object.freeze(obj));
     }
 
@@ -536,8 +538,8 @@ deleteObject(h: Handle, id: string): Promise<void> {
     });
 }
 
-function initContent(h: Handle, obj: Editable<any>): void {
-    if (obj.content && obj.changeListener) {
+function initContent(obj: Editable<any>): void {
+    if (obj.content) {
         detachChangeListener(obj.content, obj.changeListener);
     }
 
@@ -545,7 +547,6 @@ function initContent(h: Handle, obj: Editable<any>): void {
         return applyOperation(c, o.path, o);
     }, obj.shadowContent);
 
-    obj.changeListener = mkChangeListener(h, obj.objectId);
     attachChangeListener(obj.content, obj.changeListener);
 }
 
@@ -577,7 +578,7 @@ resolveEditable<T>(h: Handle, objId: string, json): void {
             obj.submittedChanges = [];
             obj.localChanges     = [];
 
-            initContent(h, obj);
+            initContent(obj);
         });
 
         // This needs to be outside of the 'updateEditable' callback. This
@@ -610,7 +611,7 @@ mkChangeListener<T>(h: Handle, objId: string): (changes: Change<any>[]) => void 
         modifyHandle(h, mkAction(`captureChanges(${objId},${ops.length})`, h => {
             withEditable(h, objId, obj => {
                 obj.localChanges = obj.localChanges.concat(ops);
-                initContent(h, obj);
+                initContent(obj);
             });
         }));
 
@@ -726,7 +727,7 @@ saveEditable(h: Handle, objId: string): void {
 
 
                 // Re-initialize the local content.
-                initContent(h, obj);
+                initContent(obj);
             });
         }));
 
