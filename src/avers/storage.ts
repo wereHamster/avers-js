@@ -934,11 +934,6 @@ resetKeyedObjectCollection(kc: KeyedObjectCollection<any>): void {
 // change when they are modified.
 
 export class Static<T> {
-
-    networkRequest : NetworkRequest = undefined;
-    lastError      : Error          = undefined;
-    value          : T              = undefined;
-
     constructor
       ( public ns    : Symbol
       , public key   : string
@@ -992,7 +987,7 @@ function
 mkStaticE<T>(h: Handle, ns: Symbol, key: string): StaticE<T> {
     let n = h.staticCache.get(ns);
     if (!n) {
-        n = new Map<string, Static<any>>();
+        n = new Map<string, StaticE<any>>();
         h.staticCache.set(ns, n);
     }
 
@@ -1057,7 +1052,6 @@ resolveStatic<T>(h: Handle, s: Static<T>, value: T): void {
         withStaticE(h, s.ns, s.key, e => {
             e.networkRequest = undefined;
             e.lastError      = undefined;
-
             e.value          = value;
         });
     }));
@@ -1093,11 +1087,9 @@ export class Ephemeral<T> {
 // through the 'ephemeralCache' in the Handle.
 
 export class EphemeralE<T> {
-
     networkRequest : NetworkRequest = undefined;
     lastError      : Error          = undefined;
     value          : T              = undefined;
-
     expiresAt      : number         = 0;
 }
 
@@ -1211,7 +1203,6 @@ resolveEphemeral<T>
         withEphemeralE(h, e.ns, e.key, e => {
             e.networkRequest = undefined;
             e.lastError      = undefined;
-
             e.value          = value;
             e.expiresAt      = expiresAt;
         });
