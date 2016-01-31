@@ -34,6 +34,15 @@ export interface Fetch {
 
 
 
+// Helpful type synonyms
+// -----------------------------------------------------------------------------
+
+export type ObjId = string;
+export type RevId = number;
+
+
+
+
 export interface ObjectConstructor<T> {
     new(): T;
 }
