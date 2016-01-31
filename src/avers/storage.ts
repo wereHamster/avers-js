@@ -920,6 +920,16 @@ export class ObjectCollection {
     url       : string;
     objectIds : string[];
 
+    ids: Computation<string[]> = new Computation(() => {
+        this.fetch();
+
+        if (this.objectIds === undefined) {
+            return Computation.Pending;
+        } else {
+            return this.objectIds;
+        }
+    });
+
     constructor
       ( public h              : Handle
       , public collectionName : string
@@ -955,17 +965,6 @@ export class ObjectCollection {
                 console.error('Avers.Collection fetch', err);
             });
         }
-    }
-
-    get ids(): Computation<string[]> {
-        this.fetch();
-        return new Computation(() => {
-            if (this.objectIds === undefined) {
-                return Computation.Pending;
-            } else {
-                return this.objectIds;
-            }
-        });
     }
 }
 
