@@ -103,7 +103,7 @@ function mkAction<T>(label: string, payload: T, applyF: (h: Handle, payload: T) 
 }
 
 function modifyHandle<T>(h: Handle, act: Action<T>): void {
-    console.debug('modifyHandle', act.label);
+    console.debug(act.label);
 
     act.applyF(h, act.payload);
     startNextGeneration(h);
