@@ -215,20 +215,26 @@ changeFeedSubscription(h: Handle, json) {
 
 
 function
-applyChange(h: Handle, change) {
-    modifyHandle(h, mkAction(`applyChange(${change.type})`, change, (h, change) => {
-        let {type,content} = change;
+applyChangeF(h: Handle, change): void {
+    let {type,content} = change;
 
-        if (type === 'patch') {
-            let patch = parsePatch(content);
-            updateEditable(h, patch.objectId, obj => {
-                applyPatches(obj, [patch]);
-                initContent(obj);
-            });
-        } else {
-            console.info('applyChange: Unhandled type: ' + type);
-        }
-    }));
+    if (type === 'patch') {
+        let patch = parsePatch(content);
+        updateEditable(h, patch.objectId, obj => {
+            applyPatches(obj, [patch]);
+            initContent(obj);
+        });
+    } else {
+        console.info('applyChangeF: Unhandled type: ' + type);
+    }
+}
+
+function
+applyChange(h: Handle, change) {
+    modifyHandle(h, mkAction(
+        `applyChange(${change.type})`,
+        change,
+        applyChangeF));
 }
 
 
@@ -507,6 +513,19 @@ type Entity = Editable<any> | StaticE<any> | EphemeralE<any>;
 // and apply changes to the Handle.
 
 function
+attachNetworkRequestF(h: Handle, { modifyE, nr }) {
+    modifyE(h, e => { e.networkRequest = nr; });
+}
+
+function
+reportNetworkFailureF(h: Handle, { modifyE, err }) {
+    modifyE(h, e => {
+        e.networkRequest = undefined;
+        e.lastError      = err;
+    });
+}
+
+function
 runNetworkRequest<T, R>
 ( h       : Handle
 , lookupE : (h: Handle) => Entity
@@ -515,21 +534,20 @@ runNetworkRequest<T, R>
 ): Promise<{ networkRequest: NetworkRequest, res: R }> {
     let nr = new NetworkRequest(h.now(), req);
 
-    modifyHandle(h, mkAction(`attachNetworkRequest()`, nr, (h, nr) => {
-        modifyE(h, e => { e.networkRequest = nr; });
-    }));
+    modifyHandle(h, mkAction(
+        `attachNetworkRequest()`,
+        { modifyE, nr },
+        attachNetworkRequestF));
 
     return req.then(res => {
         return { networkRequest: nr, res };
     }).catch(err => {
         let e = lookupE(h);
         if (e && e.networkRequest === nr) {
-            modifyHandle(h, mkAction(`reportNetworkFailure(${err})`, err, (h, err) => {
-                modifyE(h, e => {
-                    e.networkRequest = undefined;
-                    e.lastError      = err;
-                });
-            }));
+            modifyHandle(h, mkAction(
+                `reportNetworkFailure(${err})`,
+                { modifyE, err },
+                reportNetworkFailureF));
         }
 
         return err;
@@ -646,45 +664,60 @@ function initContent(obj: Editable<any>): void {
 // Note that this will invalidate any currently running network requests and
 // drop any local changes.
 
-export function
-resolveEditable<T>(h: Handle, objId: string, json): void {
-    modifyHandle(h, mkAction(`resolveEditable(${objId})`, { objId, json }, (h, { objId, json }) => {
-        updateEditable(h, objId, obj => {
-            obj.networkRequest   = undefined;
-            obj.lastError        = undefined;
+function
+resolveEditableF<T>(h: Handle, { objId, json }) {
+    updateEditable(h, objId, obj => {
+        obj.networkRequest   = undefined;
+        obj.lastError        = undefined;
 
-            obj.type             = json.type;
-            obj.objectId         = json.id;
-            obj.createdAt        = new Date(Date.parse(json.createdAt));
-            obj.createdBy        = json.createdBy;
-            obj.revisionId       = json.revisionId || 0;
+        obj.type             = json.type;
+        obj.objectId         = json.id;
+        obj.createdAt        = new Date(Date.parse(json.createdAt));
+        obj.createdBy        = json.createdBy;
+        obj.revisionId       = json.revisionId || 0;
 
-            obj.shadowContent    = parseJSON<T>(h.infoTable.get(obj.type), json.content);
+        obj.shadowContent    = parseJSON<T>(h.infoTable.get(obj.type), json.content);
 
-            obj.submittedChanges = [];
-            obj.localChanges     = [];
+        obj.submittedChanges = [];
+        obj.localChanges     = [];
 
-            initContent(obj);
-        });
+        initContent(obj);
+    });
 
-        // This needs to be outside of the 'updateEditable' callback. This
-        // function behaves like a user, it may be modifying the content, and
-        // recursive invokations of 'updateEditable' are not allowed.
-        //
-        // When we were using O.o that was not a problem, because change
-        // delivery was asynchronous, but Proxy traps are (necessarily)
-        // synchronous.
-        //
-        // The lookup in the cache can not fail, the object is guaranteed
-        // to exist. But we are extra cautious and do a check nonetheless.
+    // This needs to be outside of the 'updateEditable' callback. This
+    // function behaves like a user, it may be modifying the content, and
+    // recursive invokations of 'updateEditable' are not allowed.
+    //
+    // When we were using O.o that was not a problem, because change
+    // delivery was asynchronous, but Proxy traps are (necessarily)
+    // synchronous.
+    //
+    // The lookup in the cache can not fail, the object is guaranteed
+    // to exist. But we are extra cautious and do a check nonetheless.
 
-        let obj = h.objectCache.get(objId);
-        if (obj !== undefined) {
-            migrateObject(obj.content);
-        }
-    }));
+    let obj = h.objectCache.get(objId);
+    if (obj !== undefined) {
+        migrateObject(obj.content);
+    }
 }
 
+export function
+resolveEditable<T>(h: Handle, objId: string, json): void {
+    modifyHandle(h, mkAction(
+        `resolveEditable(${objId})`,
+        { objId, json },
+        resolveEditableF));
+}
+
+
+
+function
+captureChangesF(h: Handle, { objId, ops }) {
+    withEditable(h, objId, obj => {
+        obj.localChanges = obj.localChanges.concat(ops);
+        initContent(obj);
+    });
+}
 
 
 function
@@ -694,17 +727,47 @@ mkChangeListener<T>(h: Handle, objId: string): (changes: Change<any>[]) => void 
     return function onChange(changes: Change<any>[]): void {
         let ops = changes.map(changeOperation);
 
-        modifyHandle(h, mkAction(`captureChanges(${objId},${ops.length})`, { objId, ops }, (h, { objId, ops }) => {
-            withEditable(h, objId, obj => {
-                obj.localChanges = obj.localChanges.concat(ops);
-                initContent(obj);
-            });
-        }));
+        modifyHandle(h, mkAction(
+            `captureChanges(${objId},${ops.length})`,
+            { objId, ops },
+            captureChangesF));
 
         save(h, objId);
     };
 }
 
+
+function
+prepareLocalChangesF(h: Handle, objId) {
+    withEditable(h, objId, obj => {
+        obj.submittedChanges = obj.localChanges;
+        obj.localChanges     = [];
+    });
+}
+
+function
+applyServerResponseF(h: Handle, { objId, res, body }) {
+    withEditable(h, objId, obj => {
+        if (obj.networkRequest === res.networkRequest) {
+            obj.networkRequest = undefined;
+        }
+
+        // Clear out any traces that we've submitted changes to the
+        // server.
+        obj.submittedChanges = [];
+
+        applyPatches(obj, [].concat(body.previousPatches, body.resultingPatches));
+        initContent(obj);
+    });
+}
+
+function
+restoreLocalChangesF(h: Handle, objId) {
+    withEditable(h, objId, obj => {
+        obj.localChanges     = obj.submittedChanges.concat(obj.localChanges);
+        obj.submittedChanges = [];
+    });
+}
 
 function
 saveEditable(h: Handle, objId: string): void {
@@ -735,12 +798,10 @@ saveEditable(h: Handle, objId: string): void {
 
     // We immeadiately mark the Editable as being saved. This ensures that
     // any future attempts to save the editable are skipped.
-    modifyHandle(h, mkAction(`prepareLocalChanges(${obj.objectId})`, objId, (h, objId) => {
-        withEditable(h, obj.objectId, obj => {
-            obj.submittedChanges = obj.localChanges;
-            obj.localChanges     = [];
-        });
-    }));
+    modifyHandle(h, mkAction(
+        `prepareLocalChanges(${objId})`,
+        objId,
+        prepareLocalChangesF));
 
 
     let url = endpointUrl(h, '/objects/' + objId);
@@ -780,20 +841,10 @@ saveEditable(h: Handle, objId: string): void {
         // to date WRT the server version. Also bump the revisionId to
         // reflect what the server has.
 
-        modifyHandle(h, mkAction(`applyServerResponse(${objId})`, { objId, res, body }, (h, { objId, res, body }) => {
-            withEditable(h, objId, obj => {
-                if (obj.networkRequest === res.networkRequest) {
-                    obj.networkRequest = undefined;
-                }
-
-                // Clear out any traces that we've submitted changes to the
-                // server.
-                obj.submittedChanges = [];
-
-                applyPatches(obj, [].concat(body.previousPatches, body.resultingPatches));
-                initContent(obj);
-            });
-        }));
+        modifyHandle(h, mkAction(
+            `applyServerResponse(${objId})`,
+            { objId, res, body },
+            applyServerResponseF));
 
         // See if we have any more local changes which we need to save.
         saveEditable(h, objId);
@@ -803,12 +854,10 @@ saveEditable(h: Handle, objId: string): void {
         // were submitted before us, and we'd have to rebase our
         // changes on top of that.
 
-        modifyHandle(h, mkAction(`restoreLocalChanges(${obj.objectId})`, objId, (h, objId) => {
-            withEditable(h, objId, obj => {
-                obj.localChanges     = obj.submittedChanges.concat(obj.localChanges);
-                obj.submittedChanges = [];
-            });
-        }));
+        modifyHandle(h, mkAction(
+            `restoreLocalChanges(${objId})`,
+            objId,
+            restoreLocalChangesF));
     });
 }
 
@@ -1046,15 +1095,21 @@ refreshStatic<T>(h: Handle, s: Static<T>, ent: StaticE<T>): void {
 }
 
 
+function
+resolveStaticF(h: Handle, { s, value }) {
+    withStaticE(h, s.ns, s.key, e => {
+        e.networkRequest = undefined;
+        e.lastError      = undefined;
+        e.value          = value;
+    });
+}
+
 export function
 resolveStatic<T>(h: Handle, s: Static<T>, value: T): void {
-    modifyHandle(h, mkAction(`resolveStatic(${s.ns.toString()}, ${s.key})`, s, (h, s) => {
-        withStaticE(h, s.ns, s.key, e => {
-            e.networkRequest = undefined;
-            e.lastError      = undefined;
-            e.value          = value;
-        });
-    }));
+    modifyHandle(h, mkAction(
+        `resolveStatic(${s.ns.toString()}, ${s.key})`,
+        { s, value },
+        resolveStaticF));
 }
 
 
@@ -1192,6 +1247,16 @@ refreshEphemeral<T>(h: Handle, e: Ephemeral<T>, ent: EphemeralE<T>): void {
 // fetch function. This is exported to allow users to simulate these responses
 // without actually hitting the network.
 
+function
+resolveEphemeralF(h: Handle, { e, value, expiresAt }) {
+    withEphemeralE(h, e.ns, e.key, e => {
+        e.networkRequest = undefined;
+        e.lastError      = undefined;
+        e.value          = value;
+        e.expiresAt      = expiresAt;
+    });
+}
+
 export function
 resolveEphemeral<T>
 ( h         : Handle
@@ -1199,14 +1264,10 @@ resolveEphemeral<T>
 , value     : T
 , expiresAt : number
 ): void {
-    modifyHandle(h, mkAction(`resolveEphemeral(${e.ns.toString()}, ${e.key})`, e, (h, e) => {
-        withEphemeralE(h, e.ns, e.key, e => {
-            e.networkRequest = undefined;
-            e.lastError      = undefined;
-            e.value          = value;
-            e.expiresAt      = expiresAt;
-        });
-    }));
+    modifyHandle(h, mkAction(`
+        resolveEphemeral(${e.ns.toString()}, ${e.key})`,
+        { e, value, expiresAt },
+        resolveEphemeralF));
 }
 
 
