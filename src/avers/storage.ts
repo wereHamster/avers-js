@@ -156,10 +156,11 @@ networkRequests(h: Handle): NetworkRequest[] {
     let ret = [];
 
     for (let obj of h.objectCache.values()) {
-        ret.push(obj.networkRequest);
+        let nr = obj.networkRequest;
+        if (nr !== undefined) { ret.push(nr); }
     }
 
-    return ret.filter(x => { return x !== undefined; });
+    return ret;
 }
 
 
