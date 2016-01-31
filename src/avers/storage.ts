@@ -452,7 +452,7 @@ export class Editable<T> {
     createdBy        : string;
     // ^ The primary author who created this object.
 
-    revisionId       : number;
+    revisionId       : RevId;
     // ^ The RevId as we think is the latest on the server. Local changes
     // are submitted against this RevId.
 
@@ -467,12 +467,12 @@ export class Editable<T> {
     localChanges     : Operation[] = [];
 
 
-    constructor(public objectId: string) {}
+    constructor(public objectId: ObjId) {}
 }
 
 
 function
-withEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void): void {
+withEditable(h: Handle, objId: ObjId, f: (obj: Editable<any>) => void): void {
     let obj = h.objectCache.get(objId);
     if (obj) { applyEditableChanges(h, obj, f); }
 }
@@ -489,7 +489,7 @@ withEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void): void {
 // If the 'Editable' doesn't exist in the cache then it is created.
 
 function
-updateEditable(h: Handle, objId: string, f: (obj: Editable<any>) => void): void {
+updateEditable(h: Handle, objId: ObjId, f: (obj: Editable<any>) => void): void {
     let obj = mkEditable(h, objId);
     applyEditableChanges(h, obj, f);
 }
@@ -639,7 +639,7 @@ createObject(h: Handle, type: string, content): Promise<string> {
 export function
 createObjectId
 ( h     : Handle
-, objId : string
+, objId : ObjId
 , type  : string
 , content
 ): Promise<{}> {
@@ -692,6 +692,8 @@ function initContent(obj: Editable<any>): void {
 
 function
 resolveEditableF<T>(h: Handle, { objId, json }) {
+    // ASSERT objId === json.id
+
     updateEditable(h, objId, obj => {
         obj.networkRequest   = undefined;
         obj.lastError        = undefined;
@@ -728,7 +730,7 @@ resolveEditableF<T>(h: Handle, { objId, json }) {
 }
 
 export function
-resolveEditable<T>(h: Handle, objId: string, json): void {
+resolveEditable<T>(h: Handle, objId: ObjId, json): void {
     modifyHandle(h, mkAction(
         `resolveEditable(${objId})`,
         { objId, json },
@@ -747,7 +749,7 @@ captureChangesF(h: Handle, { objId, ops }) {
 
 
 function
-mkChangeListener<T>(h: Handle, objId: string): (changes: Change<any>[]) => void {
+mkChangeListener<T>(h: Handle, objId: ObjId): (changes: Change<any>[]) => void {
     let save: any = debounce(saveEditable, 1500);
 
     return function onChange(changes: Change<any>[]): void {
@@ -764,7 +766,7 @@ mkChangeListener<T>(h: Handle, objId: string): (changes: Change<any>[]) => void 
 
 
 function
-prepareLocalChangesF(h: Handle, objId) {
+prepareLocalChangesF(h: Handle, objId: ObjId) {
     withEditable(h, objId, obj => {
         obj.submittedChanges = obj.localChanges;
         obj.localChanges     = [];
@@ -788,7 +790,7 @@ applyServerResponseF(h: Handle, { objId, res, body }) {
 }
 
 function
-restoreLocalChangesF(h: Handle, objId) {
+restoreLocalChangesF(h: Handle, objId: ObjId) {
     withEditable(h, objId, obj => {
         obj.localChanges     = obj.submittedChanges.concat(obj.localChanges);
         obj.submittedChanges = [];
@@ -796,7 +798,7 @@ restoreLocalChangesF(h: Handle, objId) {
 }
 
 function
-saveEditable(h: Handle, objId: string): void {
+saveEditable(h: Handle, objId: ObjId): void {
     let obj = h.objectCache.get(objId);
     if (!obj) { return; }
 
@@ -1289,9 +1291,9 @@ resolveEphemeral<T>
 
 export class Patch {
     constructor
-      ( public objectId   : string
-      , public revisionId : number
-      , public authorId   : string
+      ( public objectId   : ObjId
+      , public revisionId : RevId
+      , public authorId   : ObjId
       , public createdAt  : string
       , public operation  : Operation
       ) {}
@@ -1311,7 +1313,7 @@ parsePatch(json): Patch {
 
 
 export function
-fetchPatch(h: Handle, objectId: string, revId: number): Promise<Patch> {
+fetchPatch(h: Handle, objectId: ObjId, revId: RevId): Promise<Patch> {
     let url = endpointUrl(h, '/objects/' + objectId + '/patches/' + revId);
     return h.fetch(url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
         if (res.status === 200) {
@@ -1324,7 +1326,7 @@ fetchPatch(h: Handle, objectId: string, revId: number): Promise<Patch> {
 
 
 function
-mkPatch(h: Handle, objectId: string, revId: number): Static<Patch> {
+mkPatch(h: Handle, objectId: ObjId, revId: RevId): Static<Patch> {
     let key = objectId + '@' + revId;
 
     return new Static<Patch>(aversNamespace, key, () => {
@@ -1340,6 +1342,6 @@ mkPatch(h: Handle, objectId: string, revId: number): Static<Patch> {
 // pending until the patch has been fetched from the server.
 
 export function
-lookupPatch(h: Handle, objectId: string, revId: number): Computation<Patch> {
+lookupPatch(h: Handle, objectId: ObjId, revId: RevId): Computation<Patch> {
     return staticValue(h, mkPatch(h, objectId, revId));
 }
