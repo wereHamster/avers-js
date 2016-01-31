@@ -553,6 +553,16 @@ reportNetworkFailureF(h: Handle, { entity, nr, err }) {
     }
 }
 
+function entityLabel(entity: string | Static<any> | Ephemeral<any>): string {
+    if (typeof entity === 'string') {
+        return `Editable(${entity})`;
+    } else if (entity instanceof Static) {
+        return `Static(${entity.ns.toString()},${entity.key})`;
+    } else if (entity instanceof Ephemeral) {
+        return `Ephemeral(${entity.ns.toString()},${entity.key})`;
+    }
+}
+
 function
 runNetworkRequest<T, R>
 ( h       : Handle
@@ -562,7 +572,7 @@ runNetworkRequest<T, R>
     let nr = new NetworkRequest(h.now(), req);
 
     modifyHandle(h, mkAction(
-        `attachNetworkRequest()`,
+        `attachNetworkRequest(${entityLabel(entity)})`,
         { entity, nr },
         attachNetworkRequestF));
 
@@ -570,7 +580,7 @@ runNetworkRequest<T, R>
         return { networkRequest: nr, res };
     }).catch(err => {
         modifyHandle(h, mkAction(
-            `reportNetworkFailure(${err})`,
+            `reportNetworkFailure(${entityLabel(entity)},${err})`,
             { entity, nr, err },
             reportNetworkFailureF));
 
