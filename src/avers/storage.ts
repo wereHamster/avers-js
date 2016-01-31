@@ -513,42 +513,56 @@ type Entity = Editable<any> | StaticE<any> | EphemeralE<any>;
 // and apply changes to the Handle.
 
 function
-attachNetworkRequestF(h: Handle, { modifyE, nr }) {
-    modifyE(h, e => { e.networkRequest = nr; });
+attachNetworkRequestF(h: Handle, { entity, nr }) {
+    function f(e) { e.networkRequest = nr; }
+
+    if (typeof entity === 'string') {
+        withEditable(h, entity, f);
+    } else if (entity instanceof Static) {
+        withStaticE(h, entity.ns, entity.key, f);
+    } else if (entity instanceof Ephemeral) {
+        withEphemeralE(h, entity.ns, entity.key, f);
+    }
 }
 
 function
-reportNetworkFailureF(h: Handle, { modifyE, err }) {
-    modifyE(h, e => {
-        e.networkRequest = undefined;
-        e.lastError      = err;
-    });
+reportNetworkFailureF(h: Handle, { entity, nr, err }) {
+    function f(e) {
+        if (e.networkRequest === nr) {
+            e.networkRequest = undefined;
+            e.lastError      = err;
+        }
+    }
+
+    if (typeof entity === 'string') {
+        withEditable(h, entity, f);
+    } else if (entity instanceof Static) {
+        withStaticE(h, entity.ns, entity.key, f);
+    } else if (entity instanceof Ephemeral) {
+        withEphemeralE(h, entity.ns, entity.key, f);
+    }
 }
 
 function
 runNetworkRequest<T, R>
 ( h       : Handle
-, lookupE : (h: Handle) => Entity
-, modifyE : (h: Handle, f: (e: Entity) => void) => void
+, entity  : string | Static<any> | Ephemeral<any>
 , req     : Promise<R>
 ): Promise<{ networkRequest: NetworkRequest, res: R }> {
     let nr = new NetworkRequest(h.now(), req);
 
     modifyHandle(h, mkAction(
         `attachNetworkRequest()`,
-        { modifyE, nr },
+        { entity, nr },
         attachNetworkRequestF));
 
     return req.then(res => {
         return { networkRequest: nr, res };
     }).catch(err => {
-        let e = lookupE(h);
-        if (e && e.networkRequest === nr) {
-            modifyHandle(h, mkAction(
-                `reportNetworkFailure(${err})`,
-                { modifyE, err },
-                reportNetworkFailureF));
-        }
+        modifyHandle(h, mkAction(
+            `reportNetworkFailure(${err})`,
+            { entity, nr, err },
+            reportNetworkFailureF));
 
         return err;
     });
@@ -565,12 +579,14 @@ export function
 loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
     let objId = obj.objectId;
 
-    function lookupE(h) { return h.objectCache.get(objId); }
-    function modifyE(h, f) { withEditable(h, objId, f); }
-
-    return runNetworkRequest(h, lookupE, modifyE, fetchObject(h, objId)).then(res => {
-        let e = lookupE(h);
+    return runNetworkRequest(h, objId, fetchObject(h, objId)).then(res => {
+        let e = h.objectCache.get(objId);
         if (e && e.networkRequest === res.networkRequest) {
+            // FIXME: Clearing the networkRequest from the entity maybe should
+            // be a separate action, eg. 'finishNetworkRequest'. Currently it's
+            // part of resolveEditable. But that function may be called from
+            // somebody else, outside of the context of a network request.
+
             resolveEditable<T>(h, objId, res.res);
         }
     });
@@ -813,10 +829,7 @@ saveEditable(h: Handle, objId: string): void {
         }
     });
 
-    function lookupE(h) { return h.objectCache.get(objId); }
-    function modifyE(h, f) { withEditable(h, objId, f); }
-
-    runNetworkRequest(h, lookupE, modifyE, req).then(res => {
+    runNetworkRequest(h, objId, req).then(res => {
         // We ignore whether the response is from the current NetworkRequest
         // or not. It's irrelevant, upon receeiving a successful response
         // from the server the changes have been stored in the database,
@@ -1034,13 +1047,7 @@ function withStaticE(h: Handle, ns: Symbol, key: string, f: (s: StaticE<any>) =>
 
 function
 mkStaticE<T>(h: Handle, ns: Symbol, key: string): StaticE<T> {
-    let n = h.staticCache.get(ns);
-    if (!n) {
-        n = new Map<string, StaticE<any>>();
-        h.staticCache.set(ns, n);
-    }
-
-    let s = n.get(key);
+    let s = lookupStaticE<T>(h, ns, key);
     if (!s) {
         s = new StaticE<T>();
         insertStaticE(h, ns, key, s);
@@ -1084,16 +1091,11 @@ staticValue<T>(h: Handle, s: Static<T>): Computation<T> {
 function
 refreshStatic<T>(h: Handle, s: Static<T>, ent: StaticE<T>): void {
     if (ent.value === undefined && ent.networkRequest === undefined) {
-
-        function lookupE(h) { return lookupStaticE(h, s.ns, s.key); }
-        function modifyE(h, f) { withStaticE(h, s.ns, s.key, f); }
-
-        runNetworkRequest(h, lookupE, modifyE, s.fetch()).then(res => {
+        runNetworkRequest(h, s, s.fetch()).then(res => {
             resolveStatic(h, s, res.res);
         });
     }
 }
-
 
 function
 resolveStaticF(h: Handle, { s, value }) {
@@ -1228,11 +1230,7 @@ function
 refreshEphemeral<T>(h: Handle, e: Ephemeral<T>, ent: EphemeralE<T>): void {
     let now = h.now();
     if ((ent.value === undefined || now > ent.expiresAt) && ent.networkRequest === undefined) {
-
-        function lookupE(h) { return lookupEphemeralE(h, e.ns, e.key); }
-        function modifyE(h, f) { withEphemeralE(h, e.ns, e.key, f); }
-
-        runNetworkRequest(h, lookupE, modifyE, e.fetch()).then(res => {
+        runNetworkRequest(h, e, e.fetch()).then(res => {
             resolveEphemeral(h, e, res.res.value, res.res.expiresAt);
         });
     }
