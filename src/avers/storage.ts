@@ -1173,21 +1173,24 @@ export class Patch {
 }
 
 
+function
+parsePatch(json): Patch {
+    return new Patch
+        ( json.objectId
+        , json.revisionId
+        , json.authorId
+        , json.createdAt
+        , json.operation
+        );
+}
+
 
 export function
 fetchPatch(h: Handle, objectId: string, revId: number): Promise<Patch> {
     let url = endpointUrl(h, '/objects/' + objectId + '/patches/' + revId);
     return h.fetch(url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
         if (res.status === 200) {
-            return res.json().then(json => {
-                return new Patch
-                    ( json.objectId
-                    , json.revisionId
-                    , json.authorId
-                    , json.createdAt
-                    , json.operation
-                    );
-            });
+            return res.json().then(json => parsePatch(json));
         } else {
             throw new Error('Avers.fetchPatch: status ' + res.status);
         }
