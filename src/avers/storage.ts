@@ -567,12 +567,13 @@ function
 runNetworkRequest<T, R>
 ( h       : Handle
 , entity  : string | Static<any> | Ephemeral<any>
+, label   : string
 , req     : Promise<R>
 ): Promise<{ networkRequest: NetworkRequest, res: R }> {
     let nr = new NetworkRequest(h.now(), req);
 
     modifyHandle(h, mkAction(
-        `attachNetworkRequest(${entityLabel(entity)})`,
+        `attachNetworkRequest(${entityLabel(entity)},${label})`,
         { entity, nr },
         attachNetworkRequestF));
 
@@ -599,7 +600,7 @@ export function
 loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
     let objId = obj.objectId;
 
-    return runNetworkRequest(h, objId, fetchObject(h, objId)).then(res => {
+    return runNetworkRequest(h, objId, 'fetchEditable', fetchObject(h, objId)).then(res => {
         let e = h.objectCache.get(objId);
         if (e && e.networkRequest === res.networkRequest) {
             // FIXME: Clearing the networkRequest from the entity maybe should
@@ -851,7 +852,7 @@ saveEditable(h: Handle, objId: ObjId): void {
         }
     });
 
-    runNetworkRequest(h, objId, req).then(res => {
+    runNetworkRequest(h, objId, 'saveEditable', req).then(res => {
         // We ignore whether the response is from the current NetworkRequest
         // or not. It's irrelevant, upon receeiving a successful response
         // from the server the changes have been stored in the database,
@@ -1113,7 +1114,7 @@ staticValue<T>(h: Handle, s: Static<T>): Computation<T> {
 function
 refreshStatic<T>(h: Handle, s: Static<T>, ent: StaticE<T>): void {
     if (ent.value === undefined && ent.networkRequest === undefined) {
-        runNetworkRequest(h, s, s.fetch()).then(res => {
+        runNetworkRequest(h, s, 'fetchStatic', s.fetch()).then(res => {
             resolveStatic(h, s, res.res);
         });
     }
@@ -1252,7 +1253,7 @@ function
 refreshEphemeral<T>(h: Handle, e: Ephemeral<T>, ent: EphemeralE<T>): void {
     let now = h.now();
     if ((ent.value === undefined || now > ent.expiresAt) && ent.networkRequest === undefined) {
-        runNetworkRequest(h, e, e.fetch()).then(res => {
+        runNetworkRequest(h, e, 'fetchEphemeral', e.fetch()).then(res => {
             resolveEphemeral(h, e, res.res.value, res.res.expiresAt);
         });
     }
