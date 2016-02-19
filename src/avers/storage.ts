@@ -722,22 +722,6 @@ resolveEditableF<T>(h: Handle, { objId, json }) {
 
         initContent(obj);
     });
-
-    // This needs to be outside of the 'updateEditable' callback. This
-    // function behaves like a user, it may be modifying the content, and
-    // recursive invokations of 'updateEditable' are not allowed.
-    //
-    // When we were using O.o that was not a problem, because change
-    // delivery was asynchronous, but Proxy traps are (necessarily)
-    // synchronous.
-    //
-    // The lookup in the cache can not fail, the object is guaranteed
-    // to exist. But we are extra cautious and do a check nonetheless.
-
-    let obj = h.objectCache.get(objId);
-    if (obj !== undefined) {
-        migrateObject(obj.content);
-    }
 }
 
 export function
@@ -746,6 +730,19 @@ resolveEditable<T>(h: Handle, objId: ObjId, json): void {
         `resolveEditable(${objId})`,
         { objId, json },
         resolveEditableF));
+
+    // The migration must be done outside of the 'modifyHandle' block, because
+    // migration may dispatch actions which modify the handle. Even though
+    // recursive calls to 'modifyHandle' work fine, we should avoid them.
+    //
+    // The lookup in the cache can not fail, the object is guaranteed
+    // to exist. But we can't encode that in the type system so we should do
+    // the check.
+
+    let obj = h.objectCache.get(objId);
+    if (obj !== undefined) {
+        migrateObject(obj.content);
+    }
 }
 
 
