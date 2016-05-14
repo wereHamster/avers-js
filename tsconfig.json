@@ -8,6 +8,7 @@
         "noImplicitAny": false,
         "removeComments": true,
         "noLib": false,
+        "noImplicitAny": true,
         "preserveConstEnums": true,
         "suppressImplicitAnyIndexErrors": true,
         "outDir": "dist/"
