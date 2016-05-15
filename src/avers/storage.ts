@@ -29,7 +29,7 @@ const aversNamespace = Symbol('aversNamespace');
 // W3C Fetch API or find one (eg. DefinitelyTyped) and point users to it.
 
 export interface Fetch {
-    (input: string, init?): Promise<any>;
+    (input: string, init?: any): Promise<any>;
 }
 
 
@@ -162,7 +162,7 @@ endpointUrl(h: Handle, path: string): string {
 
 export function
 networkRequests(h: Handle): NetworkRequest[] {
-    let ret = [];
+    let ret: NetworkRequest[] = [];
 
     for (let obj of h.objectCache.values()) {
         let nr = obj.networkRequest;
@@ -182,7 +182,7 @@ networkRequests(h: Handle): NetworkRequest[] {
 
 export function
 localChanges(h: Handle): { obj: Editable<any>; changes: Operation[]; }[] {
-    let ret = [];
+    let ret: { obj: any, changes: Operation[] }[] = [];
 
     for (let obj of h.objectCache.values()) {
         if (obj.localChanges.length > 0) {
@@ -200,7 +200,7 @@ localChanges(h: Handle): { obj: Editable<any>; changes: Operation[]; }[] {
 // Change the feed subscription. Opens the websocket if not already open.
 
 function
-changeFeedSubscription(h: Handle, json) {
+changeFeedSubscription(h: Handle, json: any): void {
     if (h.feedSocket === undefined) {
         h.feedSocket = h.createWebSocket('/feed');
 
@@ -225,7 +225,7 @@ changeFeedSubscription(h: Handle, json) {
 
 
 function
-applyChangeF(h: Handle, change): void {
+applyChangeF(h: Handle, change: { type: string; content: any }): void {
     let {type,content} = change;
 
     if (type === 'patch') {
@@ -240,7 +240,7 @@ applyChangeF(h: Handle, change): void {
 }
 
 function
-applyChange(h: Handle, change) {
+applyChange(h: Handle, change: { type: string; content: any }): void {
     modifyHandle(h, mkAction(
         `applyChange(${change.type})`,
         change,
@@ -366,7 +366,7 @@ lookupContent<T>(h: Handle, id: string): Computation<T> {
 export function
 fetchEditable<T>(h: Handle, id: string): Promise<Editable<T>> {
     return new Promise((resolve, reject) => {
-        (function check(obj?) {
+        (function check(obj?: any) {
             obj = mkEditable(h, id);
 
             if (obj.content !== undefined) {
@@ -385,8 +385,8 @@ fetchEditable<T>(h: Handle, id: string): Promise<Editable<T>> {
 
 
 
-function debounce<T extends Function>(func: T, wait, immediate = undefined): T {
-    let timeout, args, context, timestamp, result;
+function debounce<T extends Function>(func: T, wait: any, immediate: any = undefined): T {
+    let timeout: any, args: any, context: any, timestamp: any, result: any;
 
     let later = function() {
         let last = Date.now() - timestamp;
@@ -524,7 +524,9 @@ type Entity = Editable<any> | StaticE<any> | EphemeralE<any>;
 
 function
 attachNetworkRequestF(h: Handle, { entity, nr }) {
-    function f(e) { e.networkRequest = nr; }
+    function f(e: { networkRequest: NetworkRequest}) {
+        e.networkRequest = nr;
+    }
 
     if (typeof entity === 'string') {
         withEditable(h, entity, f);
@@ -537,7 +539,7 @@ attachNetworkRequestF(h: Handle, { entity, nr }) {
 
 function
 reportNetworkFailureF(h: Handle, { entity, nr, err }) {
-    function f(e) {
+    function f(e: { networkRequest: NetworkRequest, lastError: any }): void {
         if (e.networkRequest === nr) {
             e.networkRequest = undefined;
             e.lastError      = err;
@@ -634,12 +636,12 @@ fetchObject(h: Handle, id: string): Promise<any> {
 
 
 export function
-createObject(h: Handle, type: string, content): Promise<string> {
+createObject(h: Handle, type: string, content: any): Promise<string> {
     let url  = endpointUrl(h, '/objects')
       , body = JSON.stringify({ type: type, content: content });
 
     return h.fetch(url, { credentials: 'include', method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' }}).then(res => {
-        return res.json().then(json => {
+        return res.json().then((json: any) => {
             startNextGeneration(h);
             return json.id;
         });
@@ -649,16 +651,16 @@ createObject(h: Handle, type: string, content): Promise<string> {
 
 export function
 createObjectId
-( h     : Handle
-, objId : ObjId
-, type  : string
-, content
+( h       : Handle
+, objId   : ObjId
+, type    : string
+, content : any
 ): Promise<{}> {
     let url  = endpointUrl(h, '/objects/' + objId)
       , body = JSON.stringify({ type: type, content: content });
 
     return h.fetch(url, { credentials: 'include', method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' }}).then(res => {
-        return res.json().then(json => {
+        return res.json().then((json: any) => {
             startNextGeneration(h);
             return {};
         });
@@ -725,7 +727,7 @@ resolveEditableF<T>(h: Handle, { objId, json }) {
 }
 
 export function
-resolveEditable<T>(h: Handle, objId: ObjId, json): void {
+resolveEditable<T>(h: Handle, objId: ObjId, json: any): void {
     modifyHandle(h, mkAction(
         `resolveEditable(${objId})`,
         { objId, json },
@@ -955,7 +957,7 @@ export class ObjectCollection {
             this.fetchedAt = now;
 
             this.h.fetch(this.url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
-                return res.json().then(json => {
+                return res.json().then((json: any) => {
                     this.mergeIds(json);
                 });
             }).catch(err => {
@@ -1308,7 +1310,7 @@ export class Patch {
 
 
 function
-parsePatch(json): Patch {
+parsePatch(json: any): Patch {
     return new Patch
         ( json.objectId
         , json.revisionId
@@ -1324,7 +1326,7 @@ fetchPatch(h: Handle, objectId: ObjId, revId: RevId): Promise<Patch> {
     let url = endpointUrl(h, '/objects/' + objectId + '/patches/' + revId);
     return h.fetch(url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
         if (res.status === 200) {
-            return res.json().then(json => parsePatch(json));
+            return res.json().then((json: any) => parsePatch(json));
         } else {
             throw new Error('Avers.fetchPatch: status ' + res.status);
         }

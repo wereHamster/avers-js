@@ -18,12 +18,12 @@ export class Session {
 }
 
 
-function runReq(session: Session, path: string, opts = {}) {
+function runReq(session: Session, path: string, opts = {}): Promise<{ status: number; json(): Promise<any> }> {
     let url = endpointUrl(session.h, path);
     return session.h.fetch(url, assign({ credentials: 'include' }, opts));
 }
 
-function jsonOk(res) {
+function jsonOk(res: { status: number; json(): Promise<any> }): Promise<any> {
     if (res.status >= 200 && res.status < 300) {
         return res.json();
     } else {

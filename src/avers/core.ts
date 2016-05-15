@@ -1,6 +1,6 @@
 const splice = Array.prototype.splice;
 
-function result(object, property: string) {
+function result(object: any, property: string) {
     if (object != null) {
         let value = object[property];
         if (typeof value === 'function') {
@@ -34,14 +34,14 @@ const changeListenersSymbol = Symbol('aversChangeListeners');
 const childListenersSymbol = Symbol('aversChildListeners');
 
 
-function emitChanges(self, changes: Change<any>[]): void {
+function emitChanges(self: any, changes: Change<any>[]): void {
     let listeners = self[changeListenersSymbol];
     if (listeners) {
-        listeners.forEach(fn => { fn(changes); });
+        listeners.forEach((fn: any) => { fn(changes); });
     }
 }
 
-function listenTo(self, obj, callback: ChangeCallback): void {
+function listenTo(self: any, obj: any, callback: ChangeCallback): void {
     let listeners = self[childListenersSymbol];
     if (!listeners) {
         listeners = self[childListenersSymbol] = new Map();
@@ -51,7 +51,7 @@ function listenTo(self, obj, callback: ChangeCallback): void {
     attachChangeListener(obj, callback);
 }
 
-function stopListening(self, obj): void {
+function stopListening(self: any, obj: any): void {
     let listeners = self[childListenersSymbol];
     if (listeners) {
         let fn = listeners.get(obj);
@@ -85,19 +85,19 @@ interface PropertyDescriptor {
 
 // Return the property descriptors for the given object. Returns undefined
 // if the object has no properties defined on it.
-function aversProperties(obj): AversProperties {
+function aversProperties(obj: any): AversProperties {
     return Object.getPrototypeOf(obj)[aversPropertiesSymbol];
 }
 
-function withId(json, obj) {
+function withId<T>(json: any, obj: T): T {
     if (json.id !== undefined) {
-        obj.id = json.id;
+        (<any>obj).id = json.id;
     }
 
     return obj;
 }
 
-function descendInto(obj, key: string) {
+function descendInto(obj: any, key: string): any {
     if (Array.isArray(obj)) {
         return obj.idMap[key];
     } else if (obj === Object(obj) && aversProperties(obj) && aversProperties(obj)[key]) {
@@ -106,7 +106,7 @@ function descendInto(obj, key: string) {
 }
 
 export function
-resolvePath<T>(obj, path: string): T {
+resolvePath<T>(obj: any, path: string): T {
     if (path === '') {
         return obj;
     } else {
@@ -125,7 +125,7 @@ clone(x: any): any {
     }
 }
 
-function setValueAtPath(root, path: string, value): any {
+function setValueAtPath(root: any, path: string, value: any): any {
     let pathKeys = path.split('.')
       , lastKey  = pathKeys.pop()
       , obj      = resolvePath<any>(root, pathKeys.join('.'));
@@ -146,7 +146,7 @@ function last<T>(xs: T[]): T {
 
 // Splice operations can currently not be applied to the root. This is
 // a restriction which may be lifted in the future.
-function applySpliceOperation(root, path: string, op: Operation): any {
+function applySpliceOperation(root: any, path: string, op: Operation): any {
     let obj    = resolvePath<any>(root, path)
       , parent = resolvePath<any>(root, parentPath(path))
       , prop   = aversProperties(parent)[last(path.split('.'))]
@@ -167,7 +167,7 @@ function applySpliceOperation(root, path: string, op: Operation): any {
 // or loaded from the server.
 
 export function
-applyOperation(root, path: string, op: Operation): void {
+applyOperation<T>(root: T, path: string, op: Operation): T {
     switch (op.type) {
     case 'set'    : return setValueAtPath(clone(root), path, op.value);
     case 'splice' : return applySpliceOperation(clone(root), path, op);
@@ -204,7 +204,7 @@ export function
 defineObject<T>(x: any, name: string, klass: any, def?: T) {
     let desc = { type   : PropertyType.Object
                , parser : createObjectParser(klass)
-               , value  : undefined
+               , value  : <any> undefined
                };
 
     if (def) {
@@ -215,7 +215,7 @@ defineObject<T>(x: any, name: string, klass: any, def?: T) {
 }
 
 export function
-defineVariant<T>(x: any, name: string, typeField, typeMap, def?: T) {
+defineVariant<T>(x: any, name: string, typeField: string, typeMap: { [name: string]: any }, def?: T): void {
 
     // Check that all constructors are valid Avers objects. This is an
     // invariant which we can't express in the type system, but want to
@@ -235,7 +235,7 @@ defineVariant<T>(x: any, name: string, typeField, typeMap, def?: T) {
                , parser    : createVariantParser(name, typeField, typeMap)
                , typeField : typeField
                , typeMap   : typeMap
-               , value     : undefined
+               , value     : <any> undefined
                };
 
     if (def) {
@@ -254,19 +254,19 @@ defineCollection(x: any, name: string, klass: any) {
     defineProperty(x, name, desc);
 }
 
-function createObjectParser(klass) {
-    return (json) => parseJSON(klass, json);
+function createObjectParser<T>(klass: any): (json: any) => T {
+    return (json) => parseJSON<T>(klass, json);
 }
 
-function createVariantParser(name: string, typeField, typeMap) {
-    return function(json, parent) {
+function createVariantParser<T>(name: string, typeField: string, typeMap: { [typeField: string]: any }): (json: any, parent: any) => T {
+    return function(json: any, parent: any): T {
         let type = parent[typeField] || parent[name][typeField];
-        return parseJSON(typeMap[type], json);
+        return parseJSON<T>(typeMap[type], json);
     };
 }
 
 function
-parseValue(desc: PropertyDescriptor, old, json, parent) {
+parseValue(desc: PropertyDescriptor, old: any, json: any, parent: any): any {
     switch (desc.type) {
     case PropertyType.Collection:
         if (json) {
@@ -276,7 +276,7 @@ parseValue(desc: PropertyDescriptor, old, json, parent) {
                 resetCollection(old);
             }
 
-            json.forEach(x => {
+            json.forEach((x: any) => {
                 old.push(withId(json, desc.parser(x, parent)));
             });
 
@@ -301,7 +301,7 @@ parseValue(desc: PropertyDescriptor, old, json, parent) {
 }
 
 export function
-updateObject(x, json) {
+updateObject<T>(x: T, json: any): T {
     let aversProps = aversProperties(x);
 
     for (let name in aversProps) {
@@ -316,7 +316,7 @@ updateObject(x, json) {
 }
 
 export function
-migrateObject(x) {
+migrateObject<T>(x: T): T {
     let aversProps = aversProperties(x);
 
     for (let name in aversProps) {
@@ -344,7 +344,7 @@ migrateObject(x) {
 }
 
 let objectProxyHandler = {
-    set: (target, property, value, receiver) => {
+    set: (target: any, property: string, value: any, receiver: any): boolean => {
         let oldValue           = target[property]
           , propertyDescriptor = aversProperties(target)[property];
 
@@ -371,7 +371,7 @@ let objectProxyHandler = {
         return true;
     },
 
-    deleteProperty: (target, property) => {
+    deleteProperty: (target: any, property: string): boolean => {
         let oldValue           = target[property]
           , propertyDescriptor = aversProperties(target)[property];
 
@@ -392,7 +392,7 @@ function createObject<T>(x: new() => T): T {
 }
 
 export function
-parseJSON<T>(x: new() => T, json): T {
+parseJSON<T>(x: new() => T, json: any): T {
     if ((<any>x) === String || (<any>x) === Number) {
         return new (<any>x)(json).valueOf();
     } else {
@@ -401,7 +401,7 @@ parseJSON<T>(x: new() => T, json): T {
 }
 
 export function
-mk<T>(x: new() => T, json): T {
+mk<T>(x: new() => T, json: any): T {
     return migrateObject(parseJSON(x, json));
 }
 
@@ -432,7 +432,7 @@ interface ChangeRecord {
 }
 
 export function
-typeName(typeMap, klass): string {
+typeName(typeMap: { [klass: string]: any }, klass: any): string {
     for (let type in typeMap) {
         if (typeMap[type] === klass) {
             return type;
@@ -440,7 +440,7 @@ typeName(typeMap, klass): string {
     }
 }
 
-function objectJSON(x) {
+function objectJSON(x: any): any {
     let json       = Object.create(null)
       , aversProps = aversProperties(x);
 
@@ -475,11 +475,11 @@ function objectJSON(x) {
 }
 
 export function
-toJSON(x) {
+toJSON(x: any): any {
     if (x === Object(x) && aversProperties(x)) {
         return objectJSON(x);
     } else if (Array.isArray(x)) {
-        return x.map(item => withId(item, toJSON(item)));
+        return x.map((item: any) => withId(item, toJSON(item)));
     } else {
         return x;
     }
@@ -648,7 +648,7 @@ function embedChange<T>(change: Change<T>, key: string): Change<T> {
     return new Change(concatPath(key, change.path), change.record);
 }
 
-function forwardChanges(obj, prop, key: string) {
+function forwardChanges(obj: any, prop: string, key: string): void {
     listenTo(obj, prop, changes => {
         emitChanges(obj, changes.map(change => embedChange(change, key)));
     });

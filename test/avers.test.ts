@@ -111,7 +111,7 @@ function now(): number {
     return Date.now();
 }
 
-function mkHandle(json) {
+function mkHandle(json: any): Avers.Handle {
     function fetch(url: string) {
         return Promise.resolve(
             { status : 200
@@ -189,7 +189,7 @@ describe('Avers.updateObject', function() {
 });
 
 describe('Avers.toJSON', function() {
-    function runTest(x, json) {
+    function runTest(x: any, json: any): void {
         assert.deepEqual(Avers.toJSON(x), json);
         assert.doesNotThrow(function() {
             JSON.stringify(Avers.toJSON(x));
@@ -223,7 +223,7 @@ describe('Change event propagation', function() {
     // This timeout is very conservative;
     this.timeout(500);
 
-    function expectChangeAtPath(obj, expectedPath, done) {
+    function expectChangeAtPath<T>(obj: T, expectedPath: string, done: () => void) {
         Avers.attachChangeListener(obj, function changeCallback(changes) {
             changes.forEach(function(change) {
                 if (change.path === expectedPath) {
@@ -281,9 +281,10 @@ describe('Avers.resolvePath', function() {
         assert.equal('Tomas', Avers.resolvePath(book, 'author.firstName'));
     });
     it('should resolve across arrays', function() {
-        var item, library = Avers.mk(Library, {});
+        var item = Avers.parseJSON(Item, jsonBookItemWithId)
+          , library = Avers.mk(Library, {});
 
-        library.items.push(item = Avers.parseJSON(Item, jsonBookItemWithId));
+        library.items.push(item);
 
         var id   = Avers.itemId(library.items, item);
         var path = 'items.' + id + '.content.author.firstName';
@@ -312,7 +313,7 @@ describe('Avers.resolvePath', function() {
 
 describe('Avers.applyOperation', function() {
 
-    function run(op, f) {
+    function run(op: Avers.Operation, f: (a: Book, b: Book) => void): void {
         let orig = Avers.mk(Book, jsonBook)
           , copy = Avers.applyOperation(orig, op.path, op);
 
@@ -320,7 +321,7 @@ describe('Avers.applyOperation', function() {
     }
 
     describe('set', function() {
-        function mkOp(path, value) {
+        function mkOp(path: string, value: any): Avers.Operation {
             return { type: 'set', path, value };
         }
 
@@ -336,7 +337,7 @@ describe('Avers.applyOperation', function() {
         });
     });
     describe('splice', function() {
-        function mkOp(path, index, remove, insert) {
+        function mkOp(path: string, index: number, remove: number, insert: any[]): Avers.Operation {
             return { type: 'splice', path, index, remove, insert };
         }
 
@@ -357,15 +358,17 @@ describe('Avers.applyOperation', function() {
 
 describe('Avers.itemId', function() {
     it('should return undefined until changes have been delivered', function() {
-        var item, library = Avers.mk(Library, {});
+        var item = Avers.parseJSON(Item, jsonItem)
+          , library = Avers.mk(Library, {});
 
-        library.items.push(item = Avers.parseJSON(Item, jsonItem));
+        library.items.push(item);
         assert.isUndefined(Avers.itemId(library.items, item));
     });
     it('should return the item id when the item has one set', function() {
-        var item, library = Avers.mk(Library, {});
+        var item = Avers.parseJSON(Item, jsonBookItemWithId)
+          , library = Avers.mk(Library, {});
 
-        library.items.push(item = Avers.parseJSON(Item, jsonBookItemWithId));
+        library.items.push(item);
         assert.equal(Avers.itemId(library.items, item), jsonBookItemWithId.id);
     });
 });
@@ -382,9 +385,10 @@ describe('Avers.clone', function() {
         assert.deepEqual(Avers.toJSON(book), Avers.toJSON(clone));
     });
     it('should clone collections', function() {
-        var item, library = Avers.mk(Library, {});
+        var item = Avers.parseJSON(Item, jsonItem)
+          , library = Avers.mk(Library, {});
 
-        library.items.push(item = Avers.parseJSON(Item, jsonItem));
+        library.items.push(item);
         var clone = Avers.clone(library.items);
         assert.deepEqual(Avers.toJSON(library.items), Avers.toJSON(clone));
     });
@@ -430,8 +434,8 @@ describe('Avers.mk', function() {
     });
 
     it('should flush all changes', function() {
-        var author     = Avers.mk(Author, jsonAuthor)
-          , allChanges = [];
+        var author = Avers.mk(Author, jsonAuthor)
+          , allChanges: Avers.Change<any>[] = [];
 
         Avers.attachChangeListener(author, changes => {
             allChanges = allChanges.concat(changes);
