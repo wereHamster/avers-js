@@ -504,7 +504,7 @@ updateEditable(h: Handle, objId: ObjId, f: (obj: Editable<any>) => void): void {
 
 function
 applyEditableChanges(h: Handle, obj: Editable<any>, f: (obj: Editable<any>) => void): void {
-    h.objectCache.set(obj.objectId, immutableClone(obj, f));
+    h.objectCache.set(obj.objectId, immutableClone(Editable, obj, f));
 }
 
 
@@ -1050,7 +1050,7 @@ function insertStaticE(h: Handle, ns: Symbol, key: string, e: StaticE<any>): voi
 
 function
 applyStaticChanges<T>(h: Handle, ns: Symbol, key: string, s: StaticE<T>, f: (s: StaticE<T>) => void): void {
-    insertStaticE(h, ns, key, immutableClone(s, f));
+    insertStaticE(h, ns, key, immutableClone(StaticE, s, f));
 }
 
 
@@ -1191,7 +1191,7 @@ function insertEphemeralE(h: Handle, ns: Symbol, key: string, e: EphemeralE<any>
 
 function
 applyEphemeralChanges<T>(h: Handle, ns: Symbol, key: string, s: EphemeralE<T>, f: (s: EphemeralE<T>) => void): void {
-    insertEphemeralE(h, ns, key, immutableClone(s, f));
+    insertEphemeralE(h, ns, key, immutableClone(EphemeralE, s, f));
 }
 
 

@@ -3,8 +3,8 @@ export function last<T>(xs: T[]): T {
     return xs[xs.length - 1];
 }
 
-export function immutableClone<T extends { constructor: any; }>(x: T, f: (x: T) => void): T {
-    let copy = assign(new x.constructor(), x);
+export function immutableClone<T>(ctor: new(...args: any[]) => T, x: T, f: (x: T) => void): T {
+    let copy = assign(new ctor, x);
     f(copy);
     return Object.freeze(copy);
 }
