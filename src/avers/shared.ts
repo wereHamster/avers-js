@@ -3,11 +3,6 @@ export function last<T>(xs: T[]): T {
     return xs[xs.length - 1];
 }
 
-export function zip<A,B>(a: A[], b: B[]): any[] {
-    return a.map((x, i) => [x, b[i]]);
-}
-
-
 export function immutableClone<T extends { constructor: any; }>(x: T, f: (x: T) => void): T {
     let copy = assign(new x.constructor(), x);
     f(copy);
