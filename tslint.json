@@ -3,7 +3,7 @@
     , "indent": true
     , "radix": true
     , "no-arg": true
-    , "check-curly": true
+    , "curly": true
     , "no-duplicate-key": true
     , "no-duplicate-variable": true
     , "no-trailing-whitespace": true
