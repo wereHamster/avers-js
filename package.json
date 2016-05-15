@@ -22,9 +22,9 @@
     "merge2": "^0.3.6",
     "mocha": "^2.3.4",
     "serve": "*",
-    "tsd": "^0.6.5",
     "tslint": "^3.2.1",
-    "typescript": "^1.7.5"
+    "typescript": "^1.7.5",
+    "typings": "^0.8.1"
   },
   "dependencies": {
     "computation": "^1.0.0"

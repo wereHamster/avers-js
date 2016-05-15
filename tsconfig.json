@@ -19,6 +19,6 @@
         "src/avers/storage.ts",
         "src/avers.ts",
         "test/avers.test.ts",
-        "typings/tsd.d.ts"
+        "typings/main.d.ts"
     ]
 }
