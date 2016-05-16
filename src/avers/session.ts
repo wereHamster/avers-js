@@ -18,12 +18,12 @@ export class Session {
 }
 
 
-function runReq(session: Session, path: string, opts = {}): Promise<Response> {
+function runReq(session: Session, path: string, opts: RequestInit): Promise<Response> {
     let url = endpointUrl(session.h, path);
     return session.h.fetch(url, assign({ credentials: 'include' }, opts));
 }
 
-function jsonOk(res: Response): Promise<any> {
+function jsonOk<T>(res: Response): Promise<T> {
     if (res.status >= 200 && res.status < 300) {
         return res.json();
     } else {
@@ -60,7 +60,7 @@ function finishTransition(session: Session, objId: string, err: Error) {
 export function
 restoreSession(session: Session): Promise<void> {
     beginTransition(session, Transition.Restore);
-    return runReq(session, '/session').then(res => {
+    return runReq(session, '/session', {}).then(res => {
 
         // We allow both 200 and 404 to be valid responses and don't set the
         // last error in these cases.
@@ -95,10 +95,14 @@ restoreSession(session: Session): Promise<void> {
 
 export function
 signup(session: Session, login: string): Promise<string> {
-    let body = JSON.stringify({ login: login });
+    let requestInit: RequestInit = {
+        method: 'POST',
+        body: JSON.stringify({ login: login }),
+        headers: { accept: 'application/json', 'content-type': 'application/json' }
+    };
 
     beginTransition(session, Transition.Signup);
-    return runReq(session, '/signup', { method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' } }).then(jsonOk).then(json => {
+    return runReq(session, '/signup', requestInit).then(jsonOk).then((json: any) => {
 
         // Signup doesn't authenticate the client. Therefore we preserve
         // the existing objId in the session.
@@ -120,10 +124,14 @@ signup(session: Session, login: string): Promise<string> {
 
 export function
 signin(session: Session, login: string, secret: string): Promise<void> {
-    let body = JSON.stringify({ login: login, secret: secret });
+    let requestInit: RequestInit = {
+        method: 'POST',
+        body: JSON.stringify({ login: login, secret: secret }),
+        headers: { accept: 'application/json', 'content-type': 'application/json' }
+    };
 
     beginTransition(session, Transition.Signin);
-    return runReq(session, '/session', { method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' } }).then(jsonOk).then(json => {
+    return runReq(session, '/session', requestInit).then(jsonOk).then((json: any) => {
         finishTransition(session, json.objId, undefined);
     }).catch(err => {
         finishTransition(session, undefined, err);
