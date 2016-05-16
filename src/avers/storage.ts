@@ -15,7 +15,7 @@
 
 import Computation from 'computation';
 
-import { immutableClone } from './shared';
+import { immutableClone, guardStatus } from './shared';
 import { applyOperation, Operation, Change,
     changeOperation, parseJSON, migrateObject, attachChangeListener,
     detachChangeListener } from './core';
@@ -616,13 +616,14 @@ loadEditable<T>(h: Handle, obj: Editable<T>): Promise<void> {
 export function
 fetchObject(h: Handle, id: string): Promise<any> {
     let url = endpointUrl(h, '/objects/' + id);
-    return h.fetch(url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
-        if (res.status === 200) {
-            return res.json();
-        } else {
-            throw new Error('Avers.fetchObject: status ' + res.status);
-        }
-    });
+    let requestInit: RequestInit = {
+        credentials: 'include',
+        headers: { accept: 'application/json' }
+    };
+
+    return h.fetch(url, requestInit)
+    .then(guardStatus('fetchObject', 200))
+    .then(res => res.json());
 }
 
 
@@ -835,13 +836,16 @@ saveEditable(h: Handle, objId: ObjId): void {
 
 
     let url = endpointUrl(h, '/objects/' + objId);
-    let req = h.fetch(url, { credentials: 'include', method: 'PATCH', body: data, headers: { accept: 'application/json', 'content-type': 'application/json' }}).then(res => {
-        if (res.status === 200) {
-            return res.json();
-        } else {
-            throw new Error('Avers.saveEditable: status ' + res.status);
-        }
-    });
+    let requestInit: RequestInit = {
+        credentials: 'include',
+        method: 'PATCH',
+        body: data,
+        headers: { accept: 'application/json', 'content-type': 'application/json' }
+    };
+
+    let req = h.fetch(url, requestInit)
+    .then(guardStatus('saveEditable', 200))
+    .then(res => res.json());
 
     runNetworkRequest(h, objId, 'saveEditable', req).then(res => {
         // We ignore whether the response is from the current NetworkRequest
@@ -1316,13 +1320,15 @@ parsePatch(json: any): Patch {
 export function
 fetchPatch(h: Handle, objectId: ObjId, revId: RevId): Promise<Patch> {
     let url = endpointUrl(h, '/objects/' + objectId + '/patches/' + revId);
-    return h.fetch(url, { credentials: 'include', headers: { accept: 'application/json' }}).then(res => {
-        if (res.status === 200) {
-            return res.json().then((json: any) => parsePatch(json));
-        } else {
-            throw new Error('Avers.fetchPatch: status ' + res.status);
-        }
-    });
+    let requestInit: RequestInit = {
+        credentials: 'include',
+        headers: { accept: 'application/json' }
+    };
+
+    return h.fetch(url, requestInit)
+    .then(guardStatus('fetchPatch', 200))
+    .then(res => res.json())
+    .then(json => parsePatch(json));
 }
 
 

@@ -1,5 +1,5 @@
 import { Handle, startNextGeneration, endpointUrl } from './storage';
-import { assign } from './shared';
+import { assign, guardStatus } from './shared';
 
 
 export enum Transition {
@@ -148,12 +148,10 @@ signin(session: Session, login: string, secret: string): Promise<void> {
 export function
 signout(session: Session): Promise<void> {
     beginTransition(session, Transition.Signout);
-    return runReq(session, '/session', { method: 'DELETE' }).then(res => {
-        if (res.status === 200 || res.status === 204) {
-            finishTransition(session, undefined, undefined);
-        } else {
-            throw new Error('Status ' + res.status);
-        }
+    return runReq(session, '/session', { method: 'DELETE' })
+    .then(guardStatus('signout', 200, 204))
+    .then(() => {
+        finishTransition(session, undefined, undefined);
     }).catch(err => {
         finishTransition(session, session.objId, err);
         throw err;
