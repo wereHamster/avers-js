@@ -20,7 +20,7 @@ export class Session {
 
 function runReq(session: Session, path: string, opts: RequestInit): Promise<Response> {
     let url = endpointUrl(session.h, path);
-    return session.h.fetch(url, assign({ credentials: 'include' }, opts));
+    return session.h.fetch(url, assign({ credentials: 'include' } as RequestInit, opts));
 }
 
 function jsonOk<T>(res: Response): Promise<T> {

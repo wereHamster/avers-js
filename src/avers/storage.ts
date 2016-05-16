@@ -25,14 +25,6 @@ import { applyOperation, Operation, Change,
 const aversNamespace = Symbol('aversNamespace');
 
 
-// TODO: Drop this once TypeScript itself provides the definition of the
-// W3C Fetch API or find one (eg. DefinitelyTyped) and point users to it.
-
-export interface Fetch {
-    (input: string, init?: any): Promise<any>;
-}
-
-
 
 // Helpful type synonyms
 // -----------------------------------------------------------------------------
@@ -72,7 +64,7 @@ export class Handle {
         //
         // Example: "//localhost:8000"
 
-      , public fetch : Fetch
+      , public fetch : typeof window.fetch
         // ^ API to send network requests. If you use this extension in
         // a web browser, you can pass in the 'fetch' function directly.
 
