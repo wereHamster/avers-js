@@ -16,7 +16,7 @@
 import Computation from 'computation';
 
 import { immutableClone, guardStatus } from './shared';
-import { applyOperation, Operation, Change,
+import { applyOperation, Operation, Change, ChangeCallback,
     changeOperation, parseJSON, migrateObject, attachChangeListener,
     detachChangeListener } from './core';
 
@@ -174,7 +174,7 @@ networkRequests(h: Handle): NetworkRequest[] {
 
 export function
 localChanges(h: Handle): { obj: Editable<any>; changes: Operation[]; }[] {
-    let ret: { obj: any, changes: Operation[] }[] = [];
+    let ret: { obj: Editable<any>, changes: Operation[] }[] = [];
 
     for (let obj of h.objectCache.values()) {
         if (obj.localChanges.length > 0) {
@@ -453,7 +453,7 @@ export class Editable<T> {
 
 
     content          : T;
-    changeListener   : any;
+    changeListener   : ChangeCallback;
 
     submittedChanges : Operation[] = [];
     localChanges     : Operation[] = [];
@@ -763,7 +763,7 @@ captureChangesF(h: Handle, { objId, ops }) {
 
 
 function
-mkChangeListener<T>(h: Handle, objId: ObjId): (changes: Change<any>[]) => void {
+mkChangeListener<T>(h: Handle, objId: ObjId): ChangeCallback {
     let save: any = debounce(saveEditable, 1500);
 
     return function onChange(changes: Change<any>[]): void {
