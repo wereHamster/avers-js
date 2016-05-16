@@ -464,7 +464,7 @@ export class Editable<T> {
 
 
 function
-withEditable(h: Handle, objId: ObjId, f: (obj: Editable<any>) => void): void {
+withEditable<T>(h: Handle, objId: ObjId, f: (obj: Editable<T>) => void): void {
     let obj = h.objectCache.get(objId);
     if (obj) { applyEditableChanges(h, obj, f); }
 }
@@ -481,7 +481,7 @@ withEditable(h: Handle, objId: ObjId, f: (obj: Editable<any>) => void): void {
 // If the 'Editable' doesn't exist in the cache then it is created.
 
 function
-updateEditable(h: Handle, objId: ObjId, f: (obj: Editable<any>) => void): void {
+updateEditable<T>(h: Handle, objId: ObjId, f: (obj: Editable<T>) => void): void {
     let obj = mkEditable(h, objId);
     applyEditableChanges(h, obj, f);
 }
@@ -495,7 +495,7 @@ updateEditable(h: Handle, objId: ObjId, f: (obj: Editable<any>) => void): void {
 // the new copy into the cache, overwriting the previous object.
 
 function
-applyEditableChanges(h: Handle, obj: Editable<any>, f: (obj: Editable<any>) => void): void {
+applyEditableChanges<T>(h: Handle, obj: Editable<T>, f: (obj: Editable<T>) => void): void {
     h.objectCache.set(obj.objectId, immutableClone(Editable, obj, f));
 }
 
@@ -1044,10 +1044,10 @@ function lookupStaticE<T>(h: Handle, ns: Symbol, key: string): StaticE<T> {
 }
 
 
-function insertStaticE(h: Handle, ns: Symbol, key: string, e: StaticE<any>): void {
+function insertStaticE<T>(h: Handle, ns: Symbol, key: string, e: StaticE<T>): void {
     let n = h.staticCache.get(ns);
     if (!n) {
-        n = new Map<string, StaticE<any>>();
+        n = new Map<string, StaticE<T>>();
         h.staticCache.set(ns, n);
     }
 
@@ -1061,8 +1061,8 @@ applyStaticChanges<T>(h: Handle, ns: Symbol, key: string, s: StaticE<T>, f: (s: 
 }
 
 
-function withStaticE(h: Handle, ns: Symbol, key: string, f: (s: StaticE<any>) => void): void {
-    applyStaticChanges(h, ns, key, mkStaticE<any>(h, ns, key), f);
+function withStaticE<T>(h: Handle, ns: Symbol, key: string, f: (s: StaticE<T>) => void): void {
+    applyStaticChanges(h, ns, key, mkStaticE<T>(h, ns, key), f);
 }
 
 
@@ -1185,10 +1185,10 @@ function lookupEphemeralE<T>(h: Handle, ns: Symbol, key: string): EphemeralE<T> 
 }
 
 
-function insertEphemeralE(h: Handle, ns: Symbol, key: string, e: EphemeralE<any>): void {
+function insertEphemeralE<T>(h: Handle, ns: Symbol, key: string, e: EphemeralE<T>): void {
     let n = h.ephemeralCache.get(ns);
     if (!n) {
-        n = new Map<string, EphemeralE<any>>();
+        n = new Map<string, EphemeralE<T>>();
         h.ephemeralCache.set(ns, n);
     }
 
@@ -1202,8 +1202,8 @@ applyEphemeralChanges<T>(h: Handle, ns: Symbol, key: string, s: EphemeralE<T>, f
 }
 
 
-function withEphemeralE(h: Handle, ns: Symbol, key: string, f: (s: EphemeralE<any>) => void): void {
-    applyEphemeralChanges(h, ns, key, mkEphemeralE<any>(h, ns, key), f);
+function withEphemeralE<T>(h: Handle, ns: Symbol, key: string, f: (s: EphemeralE<T>) => void): void {
+    applyEphemeralChanges(h, ns, key, mkEphemeralE<T>(h, ns, key), f);
 }
 
 
