@@ -121,7 +121,9 @@ function mkHandle(json: any): Avers.Handle {
     }
 
     function createWebSocket(path: string) {
-        return <any> {};
+        return <any> {
+            addEventListener() {},
+        };
     }
 
     let infoTable = new Map<string, Avers.ObjectConstructor<any>>();
