@@ -630,14 +630,20 @@ fetchObject(h: Handle, id: string): Promise<any> {
 
 export function
 createObject(h: Handle, type: string, content: any): Promise<string> {
-    let url  = endpointUrl(h, '/objects')
-      , body = JSON.stringify({ type: type, content: content });
+    let url = endpointUrl(h, '/objects');
+    let requestInit: RequestInit = {
+        credentials: 'include',
+        method: 'POST',
+        body: JSON.stringify({ type: type, content: content }),
+        headers: { accept: 'application/json', 'content-type': 'application/json' }
+    };
 
-    return h.fetch(url, { credentials: 'include', method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' }}).then(res => {
-        return res.json().then((json: any) => {
-            startNextGeneration(h);
-            return json.id;
-        });
+    return h.fetch(url, requestInit)
+    .then(guardStatus('createObject', 200))
+    .then(res => res.json())
+    .then(json => {
+        startNextGeneration(h);
+        return json.id;
     });
 }
 
@@ -649,14 +655,19 @@ createObjectId
 , type    : string
 , content : any
 ): Promise<{}> {
-    let url  = endpointUrl(h, '/objects/' + objId)
-      , body = JSON.stringify({ type: type, content: content });
+    let url = endpointUrl(h, '/objects/' + objId);
+    let requestInit: RequestInit = {
+        credentials: 'include',
+        method: 'POST',
+        body: JSON.stringify({ type: type, content: content }),
+        headers: { accept: 'application/json', 'content-type': 'application/json' }
+    };
 
-    return h.fetch(url, { credentials: 'include', method: 'POST', body: body, headers: { accept: 'application/json', 'content-type': 'application/json' }}).then(res => {
-        return res.json().then((json: any) => {
-            startNextGeneration(h);
-            return {};
-        });
+    return h.fetch(url, requestInit)
+    .then(res => res.json())
+    .then(json => {
+        startNextGeneration(h);
+        return {};
     });
 }
 
